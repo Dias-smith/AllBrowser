@@ -15,7 +15,7 @@ struct MediaLibraryScreen: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("歌单") {
+                Section("Playlists") {
                     ForEach(playlists.playlists) { playlist in
                         NavigationLink {
                             PlaylistDetailScreen(playlist: playlist)
@@ -25,7 +25,7 @@ struct MediaLibraryScreen: View {
                                     .foregroundStyle(ABColor.accent)
                                 VStack(alignment: .leading) {
                                     Text(playlist.name)
-                                    Text("\(playlists.entries(in: playlist.id).count) 首")
+                                    Text("\(playlists.entries(in: playlist.id).count) tracks")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -39,7 +39,7 @@ struct MediaLibraryScreen: View {
                     }
                 }
             }
-            .navigationTitle("媒体库")
+            .navigationTitle("Media")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -50,16 +50,16 @@ struct MediaLibraryScreen: View {
                     }
                 }
             }
-            .alert("新建歌单", isPresented: $showCreatePlaylist) {
-                TextField("名称", text: $newPlaylistName)
-                Button("创建") {
+            .alert("New Playlist", isPresented: $showCreatePlaylist) {
+                TextField("Name", text: $newPlaylistName)
+                Button("Create") {
                     let name = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !name.isEmpty {
                         _ = playlists.createPlaylist(name: name)
                     }
                     newPlaylistName = ""
                 }
-                Button("取消", role: .cancel) { newPlaylistName = "" }
+                Button("Cancel", role: .cancel) { newPlaylistName = "" }
             }
         }
     }
@@ -77,8 +77,8 @@ struct PlaylistDetailScreen: View {
             let entries = playlists.entries(in: playlist.id)
             if entries.isEmpty {
                 EmptyStateView(
-                    title: "暂无曲目",
-                    subtitle: "从浏览器 YouTube 增强播放加入，或添加本地条目",
+                    title: "No tracks yet",
+                    subtitle: "Add from YouTube enhanced playback or local items",
                     systemImage: "music.note"
                 )
                 .listRowBackground(Color.clear)
@@ -89,7 +89,7 @@ struct PlaylistDetailScreen: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.title).foregroundStyle(ABColor.textPrimary)
-                            Text(entry.artist.isEmpty ? (entry.youtubeVideoID != nil ? "YouTube" : "本地") : entry.artist)
+                            Text(entry.artist.isEmpty ? (entry.youtubeVideoID != nil ? "YouTube" : "Local") : entry.artist)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -141,7 +141,7 @@ struct FullPlayerScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .padding(.horizontal)
 
-                Text(playback.currentItem?.title ?? "未在播放")
+                Text(playback.currentItem?.title ?? "Not playing")
                     .font(ABFont.title(22))
                     .foregroundStyle(ABColor.textPrimary)
                 Text(playback.currentItem?.artist ?? "")
@@ -182,7 +182,7 @@ struct FullPlayerScreen: View {
                     }
                 }
 
-                Picker("倍数", selection: $playback.rate) {
+                Picker("Speed", selection: $playback.rate) {
                     Text("0.5x").tag(Float(0.5))
                     Text("1x").tag(Float(1.0))
                     Text("1.25x").tag(Float(1.25))
@@ -195,11 +195,11 @@ struct FullPlayerScreen: View {
                 Spacer()
             }
             .background(ABColor.background)
-            .navigationTitle("播放器")
+            .navigationTitle("Player")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("关闭") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
             }
         }

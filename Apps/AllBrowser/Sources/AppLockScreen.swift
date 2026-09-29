@@ -25,11 +25,11 @@ struct AppLockScreen: View {
                 Text("AllBrowser")
                     .font(ABFont.display(34))
                     .foregroundStyle(ABColor.textPrimary)
-                Text("应用已锁定")
+                Text("App Locked")
                     .font(ABFont.body(15))
                     .foregroundStyle(ABColor.textSecondary)
 
-                SecureField("输入解锁密码", text: $passcode)
+                SecureField("Enter passcode", text: $passcode)
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
                     .padding()
@@ -43,7 +43,7 @@ struct AppLockScreen: View {
                         .foregroundStyle(ABColor.danger)
                 }
 
-                Button("解锁") {
+                Button("Unlock") {
                     unlockWithPasscode()
                 }
                 .buttonStyle(ABPrimaryButtonStyle())
@@ -53,7 +53,7 @@ struct AppLockScreen: View {
                 Button {
                     Task { await unlockWithBiometrics() }
                 } label: {
-                    Label("使用 Face ID / Touch ID", systemImage: "faceid")
+                    Label("Use Face ID / Touch ID", systemImage: "faceid")
                         .foregroundStyle(ABColor.accent)
                 }
                 .disabled(isAuthenticating)

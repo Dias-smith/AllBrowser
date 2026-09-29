@@ -53,7 +53,7 @@ struct BrowserScreen: View {
 
     private var addressBar: some View {
         HStack(spacing: 10) {
-            TextField("搜索或输入网址", text: $browser.addressText)
+            TextField("Search or enter URL", text: $browser.addressText)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
@@ -99,14 +99,14 @@ struct BrowserScreen: View {
             Button { browser.addTab() } label: {
                 Image(systemName: "plus")
             }
-            .accessibilityLabel("新建标签页")
+            .accessibilityLabel("New Tab")
             Spacer()
             Menu {
-                Button("加入书签") { browser.bookmarkCurrent() }
-                Button("书签") { showBookmarks = true }
-                Button("历史") { showHistory = true }
-                Button("新标签页") { browser.addTab() }
-                Button("YouTube 播放") { openYouTubeIfNeeded() }
+                Button("Add Bookmark") { browser.bookmarkCurrent() }
+                Button("Bookmarks") { showBookmarks = true }
+                Button("History") { showHistory = true }
+                Button("New Tab") { browser.addTab() }
+                Button("Play on YouTube") { openYouTubeIfNeeded() }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -122,7 +122,7 @@ struct BrowserScreen: View {
             Text("AllBrowser")
                 .font(ABFont.display(36))
                 .foregroundStyle(ABColor.textPrimary)
-            Text("隐私浏览 · 媒体中枢 · 本地管理")
+            Text("Private browsing · Media hub · Local management")
                 .font(ABFont.body(14))
                 .foregroundStyle(ABColor.textSecondary)
 
@@ -194,15 +194,15 @@ struct TabSwitcherView: View {
                         Button(role: .destructive) {
                             browser.closeTab(tab.id)
                         } label: {
-                            Label("关闭", systemImage: "xmark")
+                            Label("Close", systemImage: "xmark")
                         }
                     }
                 }
             }
-            .navigationTitle("标签页")
+            .navigationTitle("Tabs")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -241,10 +241,10 @@ struct BookmarkListView: View {
                     }
                 }
             }
-            .navigationTitle("书签")
+            .navigationTitle("Bookmarks")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
         }
@@ -270,13 +270,13 @@ struct HistoryListView: View {
                     }
                 }
             }
-            .navigationTitle("历史")
+            .navigationTitle("History")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("清空") { browser.history.clear() }
+                    Button("Clear") { browser.history.clear() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
         }

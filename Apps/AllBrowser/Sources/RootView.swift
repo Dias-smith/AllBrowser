@@ -15,23 +15,23 @@ struct RootView: View {
 
             TabView(selection: $selectedTab) {
                 BrowserScreen()
-                    .tabItem { Label("浏览", systemImage: "globe") }
+                    .tabItem { Label("Browse", systemImage: "globe") }
                     .tag(0)
 
                 MediaLibraryScreen()
-                    .tabItem { Label("媒体", systemImage: "play.square.stack") }
+                    .tabItem { Label("Media", systemImage: "play.square.stack") }
                     .tag(1)
 
                 DownloadsScreen()
-                    .tabItem { Label("下载", systemImage: "arrow.down.circle") }
+                    .tabItem { Label("Downloads", systemImage: "arrow.down.circle") }
                     .tag(2)
 
                 PhotosScreen()
-                    .tabItem { Label("照片", systemImage: "photo.on.rectangle") }
+                    .tabItem { Label("Photos", systemImage: "photo.on.rectangle") }
                     .tag(3)
 
                 SettingsScreen()
-                    .tabItem { Label("我的", systemImage: "person.crop.circle") }
+                    .tabItem { Label("Me", systemImage: "person.crop.circle") }
                     .tag(4)
             }
             .tint(ABColor.accent)

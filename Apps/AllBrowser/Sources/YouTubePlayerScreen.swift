@@ -18,7 +18,7 @@ struct YouTubePlayerScreen: View {
         NavigationStack {
             VStack(spacing: 16) {
                 if youtube.isResolving {
-                    ProgressView("解析中…")
+                    ProgressView("Resolving…")
                         .tint(ABColor.accent)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let info {
@@ -48,8 +48,8 @@ struct YouTubePlayerScreen: View {
                             .font(ABFont.body(14))
                             .foregroundStyle(ABColor.textSecondary)
                         Text(info.usesEmbedFallback
-                             ? "当前为官方嵌入播放（可降级 / 无直链时）"
-                             : "增强播放 · 临时缓存可用")
+                             ? "Official embed playback (fallback when no direct stream)"
+                             : "Enhanced playback · Temporary cache available")
                             .font(ABFont.body(12))
                             .foregroundStyle(ABColor.accent)
                     }
@@ -57,7 +57,7 @@ struct YouTubePlayerScreen: View {
                     .padding(.horizontal)
 
                     if let playlist = playlists.playlists.first {
-                        Button("加入歌单「\(playlist.name)」") {
+                        Button("Add to playlist “\(playlist.name)”") {
                             playlists.addEntry(
                                 playlistID: playlist.id,
                                 title: info.title,
@@ -74,8 +74,8 @@ struct YouTubePlayerScreen: View {
                     Spacer()
                 } else {
                     EmptyStateView(
-                        title: "无法打开视频",
-                        subtitle: youtube.errorMessage ?? "请稍后重试",
+                        title: "Unable to open video",
+                        subtitle: youtube.errorMessage ?? "Please try again later",
                         systemImage: "exclamationmark.triangle"
                     )
                 }
@@ -85,7 +85,7 @@ struct YouTubePlayerScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
             .task {

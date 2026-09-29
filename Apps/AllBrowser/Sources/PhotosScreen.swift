@@ -19,8 +19,8 @@ struct PhotosScreen: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Picker("", selection: $segment) {
-                    Text("系统相册").tag(0)
-                    Text("缓存照片").tag(1)
+                    Text("Library").tag(0)
+                    Text("Cached Photos").tag(1)
                 }
                 .pickerStyle(.segmented)
                 .padding()
@@ -32,7 +32,7 @@ struct PhotosScreen: View {
                 }
             }
             .background(ABColor.background)
-            .navigationTitle("照片")
+            .navigationTitle("Photos")
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 await photos.requestAccessAndLoad()
@@ -59,12 +59,12 @@ struct PhotosScreen: View {
             }
         case .denied, .restricted:
             EmptyStateView(
-                title: "需要相册权限",
-                subtitle: "请在系统设置中允许 AllBrowser 访问照片",
+                title: "Photo Access Required",
+                subtitle: "Allow AllBrowser to access Photos in Settings",
                 systemImage: "photo.badge.exclamationmark"
             )
         default:
-            ProgressView("请求权限中…")
+            ProgressView("Requesting access…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -73,18 +73,18 @@ struct PhotosScreen: View {
         List {
             Section {
                 HStack {
-                    Text("占用空间")
+                    Text("Storage used")
                     Spacer()
                     Text(ByteFormat.string(from: cachePhotos.totalBytes))
                         .foregroundStyle(.secondary)
                 }
-                Button("清空缓存照片", role: .destructive) {
+                Button("Clear Cached Photos", role: .destructive) {
                     try? cachePhotos.deleteAll()
                 }
             }
-            Section("缓存项") {
+            Section("Cached Items") {
                 if cachePhotos.items.isEmpty {
-                    Text("暂无缓存照片")
+                    Text("No cached photos")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(cachePhotos.items) { item in
@@ -107,7 +107,7 @@ struct PhotosScreen: View {
                             Button(role: .destructive) {
                                 try? cachePhotos.delete(item: item)
                             } label: {
-                                Label("删除", systemImage: "trash")
+                                Label("Delete", systemImage: "trash")
                             }
                         }
                     }
@@ -123,8 +123,8 @@ struct PhotosScreen: View {
         if let urlAsset = avAsset as? AVURLAsset {
             playback.play(
                 .init(
-                    title: asset.value(forKey: "filename") as? String ?? "相册视频",
-                    artist: "相册",
+                    title: asset.value(forKey: "filename") as? String ?? "Photo Video",
+                    artist: "Photos",
                     sourceURL: urlAsset.url
                 )
             )

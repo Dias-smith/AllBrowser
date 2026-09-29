@@ -90,7 +90,7 @@ public final class PlaylistStore: ObservableObject {
         playlists = db.playlists
         entries = db.entries
         if playlists.isEmpty {
-            _ = createPlaylist(name: "我喜欢")
+            _ = createPlaylist(name: "Favorites")
         }
     }
 

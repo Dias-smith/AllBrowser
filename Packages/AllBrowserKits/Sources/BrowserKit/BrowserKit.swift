@@ -16,7 +16,7 @@ public struct BrowserTab: Identifiable, Equatable {
 
     public init(
         id: UUID = UUID(),
-        title: String = "新标签页",
+        title: String = "New Tab",
         urlString: String = "",
         isLoading: Bool = false,
         canGoBack: Bool = false,
@@ -179,7 +179,7 @@ public final class BrowserController: ObservableObject {
     }
 
     public func handleNavigationFinished(tabID: UUID, webView: WKWebView) {
-        let title = webView.title?.isEmpty == false ? (webView.title ?? "页面") : (webView.url?.host ?? "页面")
+        let title = webView.title?.isEmpty == false ? (webView.title ?? "Page") : (webView.url?.host ?? "Page")
         let urlString = webView.url?.absoluteString ?? ""
         updateTab(tabID) { tab in
             tab.title = title

@@ -10,10 +10,10 @@ public enum AppLockError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .biometricsUnavailable: return "生物识别不可用"
-        case .authenticationFailed: return "解锁失败"
-        case .passcodeNotSet: return "请先设置解锁密码"
-        case .passcodeMismatch: return "密码不正确"
+        case .biometricsUnavailable: return "Biometrics unavailable"
+        case .authenticationFailed: return "Authentication failed"
+        case .passcodeNotSet: return "Set a passcode first"
+        case .passcodeMismatch: return "Incorrect passcode"
         }
     }
 }
@@ -72,7 +72,7 @@ public final class AppLockService: ObservableObject, AppLockServing {
         }
         let success = try await context.evaluatePolicy(
             .deviceOwnerAuthenticationWithBiometrics,
-            localizedReason: "解锁 AllBrowser"
+            localizedReason: "Unlock AllBrowser"
         )
         guard success else { throw AppLockError.authenticationFailed }
         isLocked = false

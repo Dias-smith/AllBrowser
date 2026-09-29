@@ -9,9 +9,9 @@ public enum DownloadBlockReason: Equatable {
     public var userMessage: String {
         switch self {
         case .audioVideoContent:
-            return "不支持下载音视频内容，以避免侵犯版权。"
+            return "Audio/video downloads are not supported to avoid copyright infringement."
         case .protectedMediaHost:
-            return "该来源的媒体内容不可下载。"
+            return "Media from this source cannot be downloaded."
         }
     }
 }

@@ -19,8 +19,8 @@ struct SettingsScreen: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("应用锁") {
-                    Toggle("启用 App Lock", isOn: Binding(
+                Section("App Lock") {
+                    Toggle("Enable App Lock", isOn: Binding(
                         get: { settings.settings.appLockEnabled },
                         set: { enabled in
                             settings.update { $0.appLockEnabled = enabled }
@@ -35,23 +35,23 @@ struct SettingsScreen: View {
                             }
                         }
                     ))
-                    Toggle("切到后台后锁定", isOn: Binding(
+                    Toggle("Lock when leaving app", isOn: Binding(
                         get: { settings.settings.lockOnBackground },
                         set: { value in settings.update { $0.lockOnBackground = value } }
                     ))
-                    Picker("锁定宽限", selection: Binding(
+                    Picker("Lock grace period", selection: Binding(
                         get: { settings.settings.lockGraceSeconds },
                         set: { value in settings.update { $0.lockGraceSeconds = value } }
                     )) {
-                        Text("立即").tag(0)
-                        Text("1 分钟").tag(60)
-                        Text("5 分钟").tag(300)
+                        Text("Immediately").tag(0)
+                        Text("1 minute").tag(60)
+                        Text("5 minutes").tag(300)
                     }
-                    Button(appLock.isPasscodeSet ? "更新解锁密码" : "设置解锁密码") {
+                    Button(appLock.isPasscodeSet ? "Update Passcode" : "Set Passcode") {
                         showPasscodeAlert = true
                     }
                     if appLock.isPasscodeSet {
-                        Button("清除密码并关闭锁定", role: .destructive) {
+                        Button("Clear passcode and disable lock", role: .destructive) {
                             appLock.clearPasscode()
                             settings.update { $0.appLockEnabled = false }
                         }
@@ -61,8 +61,8 @@ struct SettingsScreen: View {
                     }
                 }
 
-                Section("广告拦截") {
-                    Toggle("启用页面广告拦截", isOn: Binding(
+                Section("Ad Blocking") {
+                    Toggle("Enable page ad blocking", isOn: Binding(
                         get: { settings.settings.adBlockEnabled },
                         set: { value in
                             settings.update { $0.adBlockEnabled = value }
@@ -70,36 +70,36 @@ struct SettingsScreen: View {
                         }
                     ))
                     HStack {
-                        Text("本会话拦截")
+                        Text("Blocked this session")
                         Spacer()
                         Text("\(adBlock.blockedThisSession)")
                             .foregroundStyle(.secondary)
                     }
                     HStack {
-                        Text("规则版本")
+                        Text("Rule version")
                         Spacer()
                         Text(adBlock.pack.version)
                             .foregroundStyle(.secondary)
                     }
-                    Button("恢复内置规则包") {
+                    Button("Restore built-in rules") {
                         adBlock.reloadBundledRules()
                         Task { await browser.refreshContentRules() }
                     }
                 }
 
                 Section("YouTube") {
-                    Toggle("增强播放", isOn: Binding(
+                    Toggle("Enhanced playback", isOn: Binding(
                         get: { settings.settings.youtubeEnhancedPlayback },
                         set: { value in settings.update { $0.youtubeEnhancedPlayback = value } }
                     ))
                     HStack {
-                        Text("临时缓存占用")
+                        Text("Temp cache size")
                         Spacer()
                         Text(ByteFormat.string(from: youtube.cacheUsageBytes))
                             .foregroundStyle(.secondary)
                     }
                     Stepper(
-                        "TTL \(settings.settings.youtubeCacheTTLHours) 小时",
+                        "TTL \(settings.settings.youtubeCacheTTLHours) hours",
                         value: Binding(
                             get: { settings.settings.youtubeCacheTTLHours },
                             set: { value in settings.update { $0.youtubeCacheTTLHours = value } }
@@ -107,42 +107,42 @@ struct SettingsScreen: View {
                         in: 6...168,
                         step: 6
                     )
-                    Button("清除 YouTube 临时缓存", role: .destructive) {
+                    Button("Clear YouTube temp cache", role: .destructive) {
                         youtube.clearTemporaryCache()
                     }
-                    Text("临时缓存仅用于流畅播放，不可导出或作为离线下载。")
+                    Text("Temp cache is for smooth playback only; not for export or offline downloads.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Section("浏览") {
-                    Toggle("默认桌面版请求", isOn: Binding(
+                Section("Browsing") {
+                    Toggle("Request desktop site by default", isOn: Binding(
                         get: { settings.settings.desktopModeDefault },
                         set: { value in settings.update { $0.desktopModeDefault = value } }
                     ))
-                    Button("清空历史记录", role: .destructive) {
+                    Button("Clear History", role: .destructive) {
                         browser.history.clear()
                     }
                 }
 
-                Section("关于") {
+                Section("About") {
                     HStack {
-                        Text("版本")
+                        Text("Version")
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
-                    Text("AllBrowser — 隐私浏览与本地媒体中枢")
+                    Text("AllBrowser — private browsing and local media hub")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("我的")
+            .navigationTitle("Me")
             .navigationBarTitleDisplayMode(.inline)
-            .alert("设置解锁密码", isPresented: $showPasscodeAlert) {
-                SecureField("至少 4 位", text: $passcodeInput)
+            .alert("Set Passcode", isPresented: $showPasscodeAlert) {
+                SecureField("At least 4 digits", text: $passcodeInput)
                     .keyboardType(.numberPad)
-                Button("保存") {
+                Button("Save") {
                     do {
                         try appLock.setPasscode(passcodeInput)
                         settings.update { $0.appLockEnabled = true }
@@ -153,14 +153,14 @@ struct SettingsScreen: View {
                         lockMessage = error.localizedDescription
                     }
                 }
-                Button("取消", role: .cancel) {
+                Button("Cancel", role: .cancel) {
                     passcodeInput = ""
                     if !appLock.isPasscodeSet {
                         settings.update { $0.appLockEnabled = false }
                     }
                 }
             } message: {
-                Text("密码保存在本机 Keychain，用于 Face ID 不可用时解锁。")
+                Text("Passcode is stored in Keychain and used when Face ID is unavailable.")
             }
         }
     }

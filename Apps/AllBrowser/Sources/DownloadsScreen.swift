@@ -14,9 +14,9 @@ struct DownloadsScreen: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .all: return "全部"
-            case .completed: return "已完成"
-            case .blocked: return "已拦截"
+            case .all: return "All"
+            case .completed: return "Completed"
+            case .blocked: return "Blocked"
             }
         }
     }
@@ -36,7 +36,7 @@ struct DownloadsScreen: View {
                     blockedBanner(message)
                 }
 
-                Picker("筛选", selection: $filter) {
+                Picker("Filter", selection: $filter) {
                     ForEach(DownloadFilter.allCases) { item in
                         Text(item.title).tag(item)
                     }
@@ -47,8 +47,8 @@ struct DownloadsScreen: View {
 
                 if filteredItems.isEmpty {
                     EmptyStateView(
-                        title: "暂无下载",
-                        subtitle: "浏览网页时的文件下载会显示在这里。\n不支持下载音视频内容（版权保护）。",
+                        title: "No Downloads",
+                        subtitle: "Files downloaded while browsing appear here.\nAudio and video downloads are not supported (copyright).",
                         systemImage: "arrow.down.circle"
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -68,12 +68,12 @@ struct DownloadsScreen: View {
                 }
             }
             .background(ABColor.background)
-            .navigationTitle("下载")
+            .navigationTitle("Downloads")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button("清除已完成与拦截记录", role: .destructive) {
+                        Button("Clear completed and blocked", role: .destructive) {
                             downloads.clearCompleted()
                         }
                     } label: {
@@ -82,7 +82,7 @@ struct DownloadsScreen: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Text("为遵守版权政策，本应用不会下载音视频文件。")
+                Text("To respect copyright, this app does not download audio or video files.")
                     .font(.caption2)
                     .foregroundStyle(ABColor.textSecondary)
                     .frame(maxWidth: .infinity)
@@ -155,12 +155,12 @@ struct DownloadsScreen: View {
     @ViewBuilder
     private func itemMenu(_ item: DownloadItem) -> some View {
         if item.state == .completed, let url = item.fileURL {
-            Button("预览") { previewURL = url }
+            Button("Preview") { previewURL = url }
             ShareLink(item: url) {
-                Label("分享", systemImage: "square.and.arrow.up")
+                Label("Share", systemImage: "square.and.arrow.up")
             }
         }
-        Button("删除", role: .destructive) {
+        Button("Delete", role: .destructive) {
             downloads.delete(item)
         }
     }
@@ -185,11 +185,11 @@ struct DownloadsScreen: View {
     private func subtitle(for item: DownloadItem) -> String {
         switch item.state {
         case .downloading:
-            return "下载中…"
+            return "Downloading…"
         case .completed:
             return ByteFormat.string(from: item.byteCount)
         case .failed, .blocked:
-            return item.errorMessage ?? "不可下载"
+            return item.errorMessage ?? "Not downloadable"
         }
     }
 }

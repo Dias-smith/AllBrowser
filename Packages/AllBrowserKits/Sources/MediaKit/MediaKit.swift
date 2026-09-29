@@ -225,7 +225,7 @@ public struct MiniPlayerBar: View {
                     Text(item.title)
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
-                    Text(item.artist.isEmpty ? "正在播放" : item.artist)
+                    Text(item.artist.isEmpty ? "Now Playing" : item.artist)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

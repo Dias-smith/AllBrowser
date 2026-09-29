@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>AllBrowser</string>
 	<key>CFBundleExecutable</key>
@@ -45,11 +45,11 @@
 		<string>audio</string>
 	</array>
 	<key>NSFaceIDUsageDescription</key>
-	<string>用于解锁 AllBrowser 应用锁。</string>
+	<string>Used to unlock the AllBrowser app lock.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于浏览和管理本地相册中的照片与视频。</string>
+	<string>Used to browse and manage photos and videos in your library.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>用于在你授权后保存内容到相册。</string>
+	<string>Used to save content to your photo library when you allow it.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
