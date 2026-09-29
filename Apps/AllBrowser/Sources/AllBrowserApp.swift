@@ -1,0 +1,97 @@
+import SwiftUI
+import StorageKit
+import AppLockKit
+import AdBlockKit
+import BrowserKit
+import MediaKit
+import PlaylistKit
+import FilesKit
+import PhotosKit
+import CachePhotosKit
+import YouTubeKit
+
+@MainActor
+final class AppEnvironment: ObservableObject {
+    let settings: SettingsStore
+    let bookmarks: BookmarkStore
+    let history: HistoryStore
+    let adBlock: AdBlockService
+    let appLock: AppLockService
+    let browser: BrowserController
+    let playback: PlaybackController
+    let playlists: PlaylistStore
+    let files: FilesService
+    let photos: PhotosService
+    let cachePhotos: CachePhotosService
+    let youtube: YouTubePlaybackService
+
+    init() {
+        let settings = SettingsStore()
+        let bookmarks = BookmarkStore()
+        let history = HistoryStore()
+        let adBlock = AdBlockService()
+        let appLock = AppLockService(settings: { settings.settings })
+        let browser = BrowserController(
+            bookmarks: bookmarks,
+            history: history,
+            adBlock: adBlock,
+            settings: settings
+        )
+        let playback = PlaybackController.shared
+        let playlists = PlaylistStore()
+        let files = FilesService()
+        let photos = PhotosService()
+        let cachePhotos = CachePhotosService()
+        let youtube = YouTubePlaybackService(settings: { settings.settings })
+
+        self.settings = settings
+        self.bookmarks = bookmarks
+        self.history = history
+        self.adBlock = adBlock
+        self.appLock = appLock
+        self.browser = browser
+        self.playback = playback
+        self.playlists = playlists
+        self.files = files
+        self.photos = photos
+        self.cachePhotos = cachePhotos
+        self.youtube = youtube
+    }
+}
+
+@main
+struct AllBrowserApp: App {
+    @StateObject private var env = AppEnvironment()
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environmentObject(env)
+                .environmentObject(env.settings)
+                .environmentObject(env.appLock)
+                .environmentObject(env.browser)
+                .environmentObject(env.playback)
+                .environmentObject(env.playlists)
+                .environmentObject(env.files)
+                .environmentObject(env.photos)
+                .environmentObject(env.cachePhotos)
+                .environmentObject(env.youtube)
+                .environmentObject(env.adBlock)
+                .preferredColorScheme(.dark)
+                .task {
+                    await env.browser.refreshContentRules()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .background:
+                        env.appLock.handleDidEnterBackground()
+                    case .active:
+                        env.appLock.handleWillEnterForeground()
+                    default:
+                        break
+                    }
+                }
+        }
+    }
+}

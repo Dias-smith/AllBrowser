@@ -1,1 +1,35 @@
-Readme
+# AllBrowser
+
+iOS 1.0 — 全能浏览器（浏览 / App Lock / 广告拦截 / YouTube 增强播放+临时缓存 / 媒体播放器与歌单 / 本地文件 / 相册 / 缓存照片）。
+
+## 要求
+
+- Xcode 16+
+- iOS 17+
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+
+## 生成工程并运行
+
+```bash
+cd /Users/rock/Documents/Code/AllBrowser
+xcodegen generate
+open AllBrowser.xcodeproj
+```
+
+选择模拟器或真机，运行 `AllBrowser` scheme。
+
+命令行编译：
+
+```bash
+xcodegen generate
+xcodebuild -project AllBrowser.xcodeproj -scheme AllBrowser -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build
+```
+
+## 模块
+
+本地 SPM 包 `Packages/AllBrowserKits`：
+
+- DesignSystem / StorageKit / AppLockKit / AdBlockKit / BrowserKit
+- MediaKit / PlaylistKit / FilesKit / PhotosKit / CachePhotosKit / YouTubeKit
+
+Content Blocker 扩展：`Apps/AllBrowser/ContentBlocker`
