@@ -26,7 +26,7 @@ let package = Package(
         .target(name: "BrowserKit", dependencies: ["AdBlockKit", "StorageKit", "DownloadsKit"]),
         .target(name: "MediaKit"),
         .target(name: "PlaylistKit", dependencies: ["StorageKit", "MediaKit"]),
-        .target(name: "PhotosKit"),
+        .target(name: "PhotosKit", dependencies: ["StorageKit"]),
         .target(name: "CachePhotosKit", dependencies: ["StorageKit"]),
         .target(
             name: "YouTubeKit",

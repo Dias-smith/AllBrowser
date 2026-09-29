@@ -22,6 +22,7 @@ final class AppEnvironment: ObservableObject {
     let playlists: PlaylistStore
     let downloads: DownloadService
     let photos: PhotosService
+    let organize: PhotoOrganizeSession
     let cachePhotos: CachePhotosService
     let youtube: YouTubePlaybackService
 
@@ -41,7 +42,8 @@ final class AppEnvironment: ObservableObject {
         )
         let playback = PlaybackController.shared
         let playlists = PlaylistStore()
-        let photos = PhotosService()
+        let photos = PhotosService(reviewStore: PhotoReviewStore())
+        let organize = PhotoOrganizeSession(photos: photos)
         let cachePhotos = CachePhotosService()
         let youtube = YouTubePlaybackService(settings: { settings.settings })
 
@@ -55,6 +57,7 @@ final class AppEnvironment: ObservableObject {
         self.playlists = playlists
         self.downloads = downloads
         self.photos = photos
+        self.organize = organize
         self.cachePhotos = cachePhotos
         self.youtube = youtube
     }
@@ -76,6 +79,7 @@ struct AllBrowserApp: App {
                 .environmentObject(env.playlists)
                 .environmentObject(env.downloads)
                 .environmentObject(env.photos)
+                .environmentObject(env.organize)
                 .environmentObject(env.cachePhotos)
                 .environmentObject(env.youtube)
                 .environmentObject(env.adBlock)

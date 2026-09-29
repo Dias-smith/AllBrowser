@@ -10,6 +10,7 @@
 		004C189C5FD8BDBEA449598D /* MediaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8FA051A2F7B14C5FDF2C4DD5 /* MediaKit */; };
 		02C53F1011F05642DE167719 /* BrowserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 08DA62C237AFAD7E52A4CD12 /* BrowserKit */; };
 		087F35F58E17B5E648C3DCC8 /* PhotosScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45434F1073502EC7EAE9F28 /* PhotosScreen.swift */; };
+		102151848077483905ED6ABA /* PhotoSwipeSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333A7599927E55EE9CF115F4 /* PhotoSwipeSessionView.swift */; };
 		1FE7629B9B26B9182A486EE5 /* DownloadsKit in Frameworks */ = {isa = PBXBuildFile; productRef = E0A27ED67EEE53FACC2379A8 /* DownloadsKit */; };
 		200E1F9B724BACDC8F067EF6 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE72F89304169B9D90E04A6A /* SettingsScreen.swift */; };
 		21F219D04D531835673A80D7 /* PlaylistKit in Frameworks */ = {isa = PBXBuildFile; productRef = CCFD0352BE66B6BA441D27B3 /* PlaylistKit */; };
@@ -29,6 +30,7 @@
 		FA3EF36437AF82A5D81F9AE3 /* PhotosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0B2101D6152E09DC6D8769E3 /* PhotosKit */; };
 		FB55F75C31228AE2CE88BDA2 /* MediaLibraryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EAE50CF0FF0A3A292B60205 /* MediaLibraryScreen.swift */; };
 		FCF7F3E666482B2FB7319D18 /* AllBrowserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6A114BF9CB801CD79DDD07 /* AllBrowserApp.swift */; };
+		FD67957505B94DEED394FA20 /* PhotoDeleteBasketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61D0A76D62B511A4DF4CFB93 /* PhotoDeleteBasketView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,9 +61,11 @@
 		064E2A3C86657559B40EBF3B /* DownloadsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsScreen.swift; sourceTree = "<group>"; };
 		0EAE50CF0FF0A3A292B60205 /* MediaLibraryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryScreen.swift; sourceTree = "<group>"; };
 		28AC920F9B20FD3BCD549A99 /* ContentBlockerRequestHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerRequestHandler.swift; sourceTree = "<group>"; };
+		333A7599927E55EE9CF115F4 /* PhotoSwipeSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoSwipeSessionView.swift; sourceTree = "<group>"; };
 		34A0DC3A810EA206364C4CF1 /* AllBrowserKits */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AllBrowserKits; path = Packages/AllBrowserKits; sourceTree = SOURCE_ROOT; };
 		49783C2FB45F7753989E81C2 /* AppLockScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockScreen.swift; sourceTree = "<group>"; };
 		5D6A114BF9CB801CD79DDD07 /* AllBrowserApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllBrowserApp.swift; sourceTree = "<group>"; };
+		61D0A76D62B511A4DF4CFB93 /* PhotoDeleteBasketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoDeleteBasketView.swift; sourceTree = "<group>"; };
 		6231189A3B283B26C61AA015 /* YouTubePlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubePlayerScreen.swift; sourceTree = "<group>"; };
 		788CF07E1FB43642F7AB84A2 /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
 		8883085C127CD4037571759D /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -110,7 +114,9 @@
 				788CF07E1FB43642F7AB84A2 /* BrowserScreen.swift */,
 				064E2A3C86657559B40EBF3B /* DownloadsScreen.swift */,
 				0EAE50CF0FF0A3A292B60205 /* MediaLibraryScreen.swift */,
+				61D0A76D62B511A4DF4CFB93 /* PhotoDeleteBasketView.swift */,
 				B45434F1073502EC7EAE9F28 /* PhotosScreen.swift */,
+				333A7599927E55EE9CF115F4 /* PhotoSwipeSessionView.swift */,
 				8883085C127CD4037571759D /* RootView.swift */,
 				CE72F89304169B9D90E04A6A /* SettingsScreen.swift */,
 				6231189A3B283B26C61AA015 /* YouTubePlayerScreen.swift */,
@@ -263,6 +269,8 @@
 				C16DEB620278F5E8040C305A /* BrowserScreen.swift in Sources */,
 				9FA18324625FD4B372D457E3 /* DownloadsScreen.swift in Sources */,
 				FB55F75C31228AE2CE88BDA2 /* MediaLibraryScreen.swift in Sources */,
+				FD67957505B94DEED394FA20 /* PhotoDeleteBasketView.swift in Sources */,
+				102151848077483905ED6ABA /* PhotoSwipeSessionView.swift in Sources */,
 				087F35F58E17B5E648C3DCC8 /* PhotosScreen.swift in Sources */,
 				92E4AF3DACDAB1A94350DB3F /* RootView.swift in Sources */,
 				200E1F9B724BACDC8F067EF6 /* SettingsScreen.swift in Sources */,
