@@ -33,6 +33,7 @@ struct PhotosScreen: View {
             }
             .background(ABColor.background)
             .navigationTitle("照片")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await photos.requestAccessAndLoad()
             }

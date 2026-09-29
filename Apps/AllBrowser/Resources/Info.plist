@@ -50,6 +50,10 @@
 	<string>用于浏览和管理本地相册中的照片与视频。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>用于在你授权后保存内容到相册。</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

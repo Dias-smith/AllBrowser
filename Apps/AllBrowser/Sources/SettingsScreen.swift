@@ -138,6 +138,7 @@ struct SettingsScreen: View {
                 }
             }
             .navigationTitle("我的")
+            .navigationBarTitleDisplayMode(.inline)
             .alert("设置解锁密码", isPresented: $showPasscodeAlert) {
                 SecureField("至少 4 位", text: $passcodeInput)
                     .keyboardType(.numberPad)

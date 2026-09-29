@@ -5,7 +5,7 @@ import AdBlockKit
 import BrowserKit
 import MediaKit
 import PlaylistKit
-import FilesKit
+import DownloadsKit
 import PhotosKit
 import CachePhotosKit
 import YouTubeKit
@@ -20,7 +20,7 @@ final class AppEnvironment: ObservableObject {
     let browser: BrowserController
     let playback: PlaybackController
     let playlists: PlaylistStore
-    let files: FilesService
+    let downloads: DownloadService
     let photos: PhotosService
     let cachePhotos: CachePhotosService
     let youtube: YouTubePlaybackService
@@ -31,15 +31,16 @@ final class AppEnvironment: ObservableObject {
         let history = HistoryStore()
         let adBlock = AdBlockService()
         let appLock = AppLockService(settings: { settings.settings })
+        let downloads = DownloadService()
         let browser = BrowserController(
             bookmarks: bookmarks,
             history: history,
             adBlock: adBlock,
-            settings: settings
+            settings: settings,
+            downloads: downloads
         )
         let playback = PlaybackController.shared
         let playlists = PlaylistStore()
-        let files = FilesService()
         let photos = PhotosService()
         let cachePhotos = CachePhotosService()
         let youtube = YouTubePlaybackService(settings: { settings.settings })
@@ -52,7 +53,7 @@ final class AppEnvironment: ObservableObject {
         self.browser = browser
         self.playback = playback
         self.playlists = playlists
-        self.files = files
+        self.downloads = downloads
         self.photos = photos
         self.cachePhotos = cachePhotos
         self.youtube = youtube
@@ -73,7 +74,7 @@ struct AllBrowserApp: App {
                 .environmentObject(env.browser)
                 .environmentObject(env.playback)
                 .environmentObject(env.playlists)
-                .environmentObject(env.files)
+                .environmentObject(env.downloads)
                 .environmentObject(env.photos)
                 .environmentObject(env.cachePhotos)
                 .environmentObject(env.youtube)

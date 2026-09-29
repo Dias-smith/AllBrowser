@@ -40,6 +40,7 @@ struct MediaLibraryScreen: View {
                 }
             }
             .navigationTitle("媒体库")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -77,7 +78,7 @@ struct PlaylistDetailScreen: View {
             if entries.isEmpty {
                 EmptyStateView(
                     title: "暂无曲目",
-                    subtitle: "从文件、浏览器 YouTube 或本地媒体加入",
+                    subtitle: "从浏览器 YouTube 增强播放加入，或添加本地条目",
                     systemImage: "music.note"
                 )
                 .listRowBackground(Color.clear)
@@ -102,6 +103,7 @@ struct PlaylistDetailScreen: View {
             }
         }
         .navigationTitle(playlist.name)
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(item: Binding(
             get: { showYouTube.map { IdentifiedString(id: $0) } },
             set: { showYouTube = $0?.id }

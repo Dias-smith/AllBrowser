@@ -22,8 +22,8 @@ struct RootView: View {
                     .tabItem { Label("媒体", systemImage: "play.square.stack") }
                     .tag(1)
 
-                FilesScreen()
-                    .tabItem { Label("文件", systemImage: "folder") }
+                DownloadsScreen()
+                    .tabItem { Label("下载", systemImage: "arrow.down.circle") }
                     .tag(2)
 
                 PhotosScreen()

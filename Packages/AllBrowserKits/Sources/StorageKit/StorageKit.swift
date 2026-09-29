@@ -28,6 +28,12 @@ public enum AppPaths {
         return url
     }
 
+    public static var downloads: URL {
+        let url = documents.appendingPathComponent("Downloads", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
     public static var importedFiles: URL {
         let url = documents.appendingPathComponent("Files", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

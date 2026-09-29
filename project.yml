@@ -59,7 +59,7 @@ targets:
       - package: AllBrowserKits
         product: PlaylistKit
       - package: AllBrowserKits
-        product: FilesKit
+        product: DownloadsKit
       - package: AllBrowserKits
         product: PhotosKit
       - package: AllBrowserKits

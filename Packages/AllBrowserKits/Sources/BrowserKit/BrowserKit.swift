@@ -3,6 +3,7 @@ import SwiftUI
 import WebKit
 import AdBlockKit
 import StorageKit
+import DownloadsKit
 
 public struct BrowserTab: Identifiable, Equatable {
     public let id: UUID
@@ -43,6 +44,7 @@ public final class BrowserController: ObservableObject {
     public let history: HistoryStore
     public let adBlock: AdBlockService
     public let settings: SettingsStore
+    public let downloads: DownloadService
 
     private var webViews: [UUID: WKWebView] = [:]
     private var ruleList: WKContentRuleList?
@@ -51,12 +53,14 @@ public final class BrowserController: ObservableObject {
         bookmarks: BookmarkStore,
         history: HistoryStore,
         adBlock: AdBlockService,
-        settings: SettingsStore
+        settings: SettingsStore,
+        downloads: DownloadService
     ) {
         self.bookmarks = bookmarks
         self.history = history
         self.adBlock = adBlock
         self.settings = settings
+        self.downloads = downloads
         let first = BrowserTab()
         self.tabs = [first]
         self.selectedTabID = first.id
@@ -227,10 +231,11 @@ public struct BrowserWebView: UIViewRepresentable {
 
     public func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    public final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    public final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
         let tabID: UUID
         let controller: BrowserController
         private var observations: [NSKeyValueObservation] = []
+        private var downloadItemIDs: [ObjectIdentifier: UUID] = [:]
 
         init(tabID: UUID, controller: BrowserController) {
             self.tabID = tabID
@@ -281,6 +286,97 @@ public struct BrowserWebView: UIViewRepresentable {
                 }
             }
             return nil
+        }
+
+        public func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationResponse: WKNavigationResponse,
+            decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+        ) {
+            let response = navigationResponse.response
+            let mime = response.mimeType
+            let url = response.url
+            let filename = response.suggestedFilename
+
+            let looksLikeAttachment: Bool = {
+                if let http = response as? HTTPURLResponse,
+                   let disposition = http.value(forHTTPHeaderField: "Content-Disposition")?.lowercased(),
+                   disposition.contains("attachment") {
+                    return true
+                }
+                return false
+            }()
+
+            if let reason = DownloadPolicy.evaluate(url: url, mimeType: mime, suggestedFilename: filename) {
+                // Block AV / protected media downloads outright.
+                if looksLikeAttachment || !navigationResponse.canShowMIMEType {
+                    Task { @MainActor in
+                        _ = controller.downloads.beginDownload(
+                            sourceURL: url,
+                            mimeType: mime,
+                            suggestedFilename: filename
+                        )
+                        // beginDownload already records blocked when policy fails
+                        _ = reason
+                    }
+                    decisionHandler(.cancel)
+                    return
+                }
+                decisionHandler(.allow)
+                return
+            }
+
+            if looksLikeAttachment || !navigationResponse.canShowMIMEType {
+                decisionHandler(.download)
+            } else {
+                decisionHandler(.allow)
+            }
+        }
+
+        public func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        public func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        public func download(
+            _ download: WKDownload,
+            decideDestinationUsing response: URLResponse,
+            suggestedFilename: String,
+            completionHandler: @escaping (URL?) -> Void
+        ) {
+            Task { @MainActor in
+                if let began = controller.downloads.beginDownload(
+                    sourceURL: response.url ?? download.originalRequest?.url,
+                    mimeType: response.mimeType,
+                    suggestedFilename: suggestedFilename
+                ) {
+                    downloadItemIDs[ObjectIdentifier(download)] = began.itemID
+                    completionHandler(began.destinationURL)
+                } else {
+                    completionHandler(nil)
+                }
+            }
+        }
+
+        public func downloadDidFinish(_ download: WKDownload) {
+            Task { @MainActor in
+                if let id = downloadItemIDs[ObjectIdentifier(download)] {
+                    controller.downloads.completeDownload(id: id)
+                    downloadItemIDs[ObjectIdentifier(download)] = nil
+                }
+            }
+        }
+
+        public func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+            Task { @MainActor in
+                if let id = downloadItemIDs[ObjectIdentifier(download)] {
+                    controller.downloads.failDownload(id: id, message: error.localizedDescription)
+                    downloadItemIDs[ObjectIdentifier(download)] = nil
+                }
+            }
         }
     }
 }
