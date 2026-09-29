@@ -64,14 +64,6 @@ struct BrowserScreen: View {
                 .onSubmit { browser.submitAddress() }
 
             Button {
-                openYouTubeIfNeeded()
-            } label: {
-                Image(systemName: "play.rectangle.fill")
-                    .foregroundStyle(ABColor.accentSecondary)
-            }
-            .accessibilityLabel("YouTube 增强播放")
-
-            Button {
                 browser.showTabSwitcher = true
             } label: {
                 Text("\(browser.tabs.count)")
@@ -104,11 +96,13 @@ struct BrowserScreen: View {
                 Image(systemName: "arrow.clockwise")
             }
             Spacer()
-            Button { browser.bookmarkCurrent() } label: {
-                Image(systemName: "book")
+            Button { browser.addTab() } label: {
+                Image(systemName: "plus")
             }
+            .accessibilityLabel("新建标签页")
             Spacer()
             Menu {
+                Button("加入书签") { browser.bookmarkCurrent() }
                 Button("书签") { showBookmarks = true }
                 Button("历史") { showHistory = true }
                 Button("新标签页") { browser.addTab() }
