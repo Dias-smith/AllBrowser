@@ -127,10 +127,12 @@ struct BrowserScreen: View {
                 .foregroundStyle(ABColor.textSecondary)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                quickLink(title: "DuckDuckGo", url: "https://duckduckgo.com")
-                quickLink(title: "Wikipedia", url: "https://wikipedia.org")
+                quickLink(title: "Google", url: "https://www.google.com")
+                quickLink(title: "Facebook", url: "https://www.facebook.com")
                 quickLink(title: "YouTube", url: "https://m.youtube.com")
-                quickLink(title: "Apple", url: "https://www.apple.com")
+                quickLink(title: "Amazon", url: "https://www.amazon.com")
+                quickLink(title: "Instagram", url: "https://www.instagram.com")
+                quickLink(title: "TikTok", url: "https://www.tiktok.com")
             }
             .padding(.horizontal, 24)
         }
