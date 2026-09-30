@@ -4,14 +4,12 @@ import StorageKit
 import AppLockKit
 import AdBlockKit
 import BrowserKit
-import YouTubeKit
 
 struct SettingsScreen: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var appLock: AppLockService
     @EnvironmentObject private var adBlock: AdBlockService
     @EnvironmentObject private var browser: BrowserController
-    @EnvironmentObject private var youtube: YouTubePlaybackService
     @State private var passcodeInput = ""
     @State private var showPasscodeAlert = false
     @State private var lockMessage: String?
@@ -85,34 +83,6 @@ struct SettingsScreen: View {
                         adBlock.reloadBundledRules()
                         Task { await browser.refreshContentRules() }
                     }
-                }
-
-                Section("YouTube") {
-                    Toggle("Enhanced playback", isOn: Binding(
-                        get: { settings.settings.youtubeEnhancedPlayback },
-                        set: { value in settings.update { $0.youtubeEnhancedPlayback = value } }
-                    ))
-                    HStack {
-                        Text("Temp cache size")
-                        Spacer()
-                        Text(ByteFormat.string(from: youtube.cacheUsageBytes))
-                            .foregroundStyle(.secondary)
-                    }
-                    Stepper(
-                        "TTL \(settings.settings.youtubeCacheTTLHours) hours",
-                        value: Binding(
-                            get: { settings.settings.youtubeCacheTTLHours },
-                            set: { value in settings.update { $0.youtubeCacheTTLHours = value } }
-                        ),
-                        in: 6...168,
-                        step: 6
-                    )
-                    Button("Clear YouTube temp cache", role: .destructive) {
-                        youtube.clearTemporaryCache()
-                    }
-                    Text("Temp cache is for smooth playback only; not for export or offline downloads.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("Browsing") {

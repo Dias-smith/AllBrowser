@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreLocation
 import Foundation
 import Photos
 import SwiftUI
@@ -21,6 +22,20 @@ public struct PhotoAssetItem: Identifiable, Equatable {
     public var isScreenshot: Bool { asset.mediaSubtypes.contains(.photoScreenshot) }
 }
 
+public struct PhotoAssetDetails: Equatable, Sendable {
+    public var timeText: String
+    public var locationText: String
+    public var sizeText: String
+    public var formatText: String
+
+    public static let placeholder = PhotoAssetDetails(
+        timeText: "—",
+        locationText: "—",
+        sizeText: "—",
+        formatText: "—"
+    )
+}
+
 public struct PhotoAlbumItem: Identifiable, Equatable, Hashable {
     public let id: String
     public let title: String
@@ -30,9 +45,8 @@ public struct PhotoAlbumItem: Identifiable, Equatable, Hashable {
     public init(collection: PHAssetCollection) {
         self.id = collection.localIdentifier
         self.title = collection.localizedTitle ?? "Untitled"
-        self.count = collection.estimatedAssetCount == NSNotFound
-            ? PHAsset.fetchAssets(in: collection, options: nil).count
-            : collection.estimatedAssetCount
+        // Always use a real fetch — estimatedAssetCount is often stale/wrong.
+        self.count = PHAsset.fetchAssets(in: collection, options: nil).count
         self.collection = collection
     }
 }
@@ -229,6 +243,19 @@ public final class PhotosService: ObservableObject {
         queue(for: kind).count
     }
 
+    public func assets(in album: PhotoAlbumItem) -> [PhotoAssetItem] {
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        options.includeHiddenAssets = false
+        let result = PHAsset.fetchAssets(in: album.collection, options: options)
+        var list: [PhotoAssetItem] = []
+        list.reserveCapacity(result.count)
+        result.enumerateObjects { asset, _, _ in
+            list.append(PhotoAssetItem(asset: asset))
+        }
+        return list
+    }
+
     public func assets(forIDs ids: [String]) -> [PhotoAssetItem] {
         let set = Set(ids)
         return items.filter { set.contains($0.id) }
@@ -236,6 +263,118 @@ public final class PhotosService: ObservableObject {
 
     public func pendingDeleteItems() -> [PhotoAssetItem] {
         assets(forIDs: Array(reviewStore.pendingDeleteIDs))
+    }
+
+    public func byteCount(for asset: PHAsset) -> Int64 {
+        PHAssetResource.assetResources(for: asset).reduce(Int64(0)) { sum, resource in
+            sum + ((resource.value(forKey: "fileSize") as? NSNumber)?.int64Value ?? 0)
+        }
+    }
+
+    public func totalByteCount(for items: [PhotoAssetItem]) -> Int64 {
+        items.reduce(Int64(0)) { $0 + byteCount(for: $1.asset) }
+    }
+
+    public func totalByteCount(in album: PhotoAlbumItem) -> Int64 {
+        totalByteCount(for: assets(in: album))
+    }
+
+    public func albumIDs(containing asset: PHAsset) -> Set<String> {
+        var ids = Set<String>()
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "localIdentifier == %@", asset.localIdentifier)
+        options.fetchLimit = 1
+        for album in albums {
+            if PHAsset.fetchAssets(in: album.collection, options: options).count > 0 {
+                ids.insert(album.id)
+            }
+        }
+        return ids
+    }
+
+    public var pendingDeleteByteCount: Int64 {
+        totalByteCount(for: pendingDeleteItems())
+    }
+
+    public func details(for item: PhotoAssetItem) async -> PhotoAssetDetails {
+        let asset = item.asset
+        let resources = PHAssetResource.assetResources(for: asset)
+        let primary = resources.first
+
+        let timeText: String = {
+            guard let date = asset.creationDate else { return "—" }
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }()
+
+        let sizeText: String = {
+            let bytes = (primary?.value(forKey: "fileSize") as? NSNumber)?.int64Value ?? 0
+            if bytes > 0 {
+                return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+            }
+            if asset.pixelWidth > 0, asset.pixelHeight > 0 {
+                return "\(asset.pixelWidth) × \(asset.pixelHeight)"
+            }
+            return "—"
+        }()
+
+        let formatText: String = {
+            if let name = primary?.originalFilename,
+               let ext = name.split(separator: ".").last,
+               !ext.isEmpty {
+                return String(ext).uppercased()
+            }
+            if let uti = primary?.uniformTypeIdentifier {
+                if let last = uti.split(separator: ".").last {
+                    return String(last).uppercased()
+                }
+                return uti
+            }
+            switch asset.mediaType {
+            case .video: return "VIDEO"
+            case .audio: return "AUDIO"
+            case .image: return "IMAGE"
+            default: return "—"
+            }
+        }()
+
+        let locationText = await reverseGeocodePlaceName(for: asset.location)
+
+        return PhotoAssetDetails(
+            timeText: timeText,
+            locationText: locationText,
+            sizeText: sizeText,
+            formatText: formatText
+        )
+    }
+
+    private func reverseGeocodePlaceName(for location: CLLocation?) async -> String {
+        guard let location else { return "—" }
+        return await withCheckedContinuation { continuation in
+            CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
+                guard let place = placemarks?.first else {
+                    continuation.resume(returning: "—")
+                    return
+                }
+                let parts = [
+                    place.name,
+                    place.locality,
+                    place.administrativeArea,
+                    place.country,
+                ]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty }
+
+                // Prefer a compact place label without repeating the same token.
+                var unique: [String] = []
+                for part in parts where !unique.contains(part) {
+                    unique.append(part)
+                }
+                continuation.resume(returning: unique.isEmpty ? "—" : unique.prefix(3).joined(separator: ", "))
+            }
+        }
     }
 
     public func requestImage(for asset: PHAsset, targetSize: CGSize) async -> UIImage? {
@@ -361,6 +500,7 @@ public final class PhotoOrganizeSession: ObservableObject {
     @Published public private(set) var queue: [PhotoAssetItem] = []
     @Published public private(set) var index: Int = 0
     @Published public var kind: PhotoQueueKind = .recentUnreviewed
+    @Published public var sessionTitle: String = PhotoQueueKind.recentUnreviewed.title
     @Published public var focusedAlbumID: String?
     @Published public var toastMessage: String?
     @Published public var lastError: String?
@@ -387,6 +527,7 @@ public final class PhotoOrganizeSession: ObservableObject {
 
     public func start(kind: PhotoQueueKind, focusedAlbumID: String? = nil) {
         self.kind = kind
+        self.sessionTitle = kind.title
         self.focusedAlbumID = focusedAlbumID
         queue = photos.queue(for: kind)
         index = 0
@@ -397,6 +538,19 @@ public final class PhotoOrganizeSession: ObservableObject {
            let album = photos.albums.first(where: { $0.id == focusedAlbumID }) {
             toastMessage = "Add photos to \(album.title)"
         }
+    }
+
+    public func start(album: PhotoAlbumItem) {
+        kind = .all
+        sessionTitle = album.title
+        focusedAlbumID = album.id
+        // Album sessions include every asset in the album so the progress
+        // total matches the album row count.
+        queue = photos.assets(in: album)
+        index = 0
+        undoStack.removeAll()
+        toastMessage = nil
+        lastError = nil
     }
 
     public func keep() {

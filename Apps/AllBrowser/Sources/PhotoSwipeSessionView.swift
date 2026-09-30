@@ -25,6 +25,7 @@ struct PhotoSwipeSessionView: View {
     @State private var flyOffset: CGSize = .zero
     @State private var flyOpacity: Double = 1
     @State private var albumCoverOpacity: Double = 0
+    @State private var membershipAlbumIDs: Set<String> = []
 
     @GestureState private var isDragging = false
 
@@ -90,6 +91,13 @@ struct PhotoSwipeSessionView: View {
             .onPreferenceChange(AlbumFrameKey.self) { value in
                 albumFrames.merge(value, uniquingKeysWith: { $1 })
             }
+            .onAppear { refreshMembership() }
+            .onChange(of: organize.current?.id) { _, _ in
+                refreshMembership()
+            }
+            .onChange(of: photos.albums.map(\.id)) { _, _ in
+                refreshMembership()
+            }
         }
         .background(ABColor.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
@@ -113,7 +121,7 @@ struct PhotoSwipeSessionView: View {
         .alert("New Album", isPresented: $showNewAlbum) {
             TextField("Album name", text: $newAlbumName)
             Button("Create") {
-                Task { await createAndAdd() }
+                Task { await createAlbumOnly() }
             }
             Button("Cancel", role: .cancel) { newAlbumName = "" }
         }
@@ -145,9 +153,10 @@ struct PhotoSwipeSessionView: View {
 
             Spacer()
 
-            Text(organize.kind.title)
+            Text(organize.sessionTitle)
                 .font(ABFont.title(17))
                 .foregroundStyle(ABColor.textPrimary)
+                .lineLimit(1)
 
             Spacer()
 
@@ -302,31 +311,12 @@ struct PhotoSwipeSessionView: View {
     }
 
     private var photoInfoSheet: some View {
-        NavigationStack {
-            List {
-                if let item = organize.current {
-                    if let date = item.creationDate {
-                        LabeledContent("Date") {
-                            Text(date, style: .date)
-                        }
-                    }
-                    LabeledContent("Type") {
-                        Text(item.isVideo ? "Video" : (item.isScreenshot ? "Screenshot" : "Photo"))
-                    }
-                    LabeledContent("Progress") {
-                        Text("\(progressCurrent) / \(progressTotal)")
-                    }
-                }
-            }
-            .navigationTitle("Photo Info")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { showPhotoInfo = false }
-                }
-            }
-        }
-        .presentationDetents([.medium])
+        PhotoInfoSheet(
+            item: organize.current,
+            onDone: { showPhotoInfo = false }
+        )
+        .environmentObject(photos)
+        .presentationDetents([.medium, .large])
     }
 
     private var folderBar: some View {
@@ -356,7 +346,7 @@ struct PhotoSwipeSessionView: View {
                 ScrollViewReader { proxy in
                     HStack(spacing: 12) {
                         ForEach(photos.albums) { album in
-                            let focused = album.id == organize.focusedAlbumID
+                            let belongs = membershipAlbumIDs.contains(album.id)
                             let receiving = flyingAlbumID == album.id
                             Button {
                                 moveCurrent(to: album)
@@ -364,7 +354,7 @@ struct PhotoSwipeSessionView: View {
                                 folderChip(
                                     title: album.title,
                                     systemImage: "square.and.arrow.down",
-                                    emphasized: focused,
+                                    emphasized: belongs,
                                     coverAsset: receiving ? flyingAsset : nil,
                                     coverOpacity: receiving ? albumCoverOpacity : 0
                                 )
@@ -382,9 +372,9 @@ struct PhotoSwipeSessionView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .onAppear { scrollToFocusedAlbum(using: proxy) }
-                    .onChange(of: organize.focusedAlbumID) { _, _ in
-                        scrollToFocusedAlbum(using: proxy)
+                    .onAppear { scrollToMembershipAlbum(using: proxy) }
+                    .onChange(of: membershipAlbumIDs) { _, _ in
+                        scrollToMembershipAlbum(using: proxy)
                     }
                 }
             }
@@ -555,23 +545,32 @@ struct PhotoSwipeSessionView: View {
             albumCoverOpacity = 0
             underlayItem = nil
         }
+        refreshMembership()
     }
 
-    private func createAndAdd() async {
+    private func createAlbumOnly() async {
         do {
-            let album = try await photos.createAlbum(named: newAlbumName)
+            _ = try await photos.createAlbum(named: newAlbumName)
             newAlbumName = ""
-            try? await Task.sleep(nanoseconds: 120_000_000)
             await MainActor.run {
-                moveCurrent(to: album)
+                refreshMembership()
             }
         } catch {
             organize.lastError = error.localizedDescription
         }
     }
 
-    private func scrollToFocusedAlbum(using proxy: ScrollViewProxy) {
-        guard let id = organize.focusedAlbumID else { return }
+    private func refreshMembership() {
+        guard let item = organize.current else {
+            membershipAlbumIDs = []
+            return
+        }
+        membershipAlbumIDs = photos.albumIDs(containing: item.asset)
+    }
+
+    private func scrollToMembershipAlbum(using proxy: ScrollViewProxy) {
+        let targetID = membershipAlbumIDs.first ?? organize.focusedAlbumID
+        guard let id = targetID else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             withAnimation(.easeOut(duration: 0.25)) {
                 proxy.scrollTo(id, anchor: .center)
@@ -590,6 +589,56 @@ struct PhotoSwipeSessionView: View {
 
 private enum SessionCoordinateSpace {
     static let name = "PhotoSwipeSessionSpace"
+}
+
+private struct PhotoInfoSheet: View {
+    @EnvironmentObject private var photos: PhotosService
+    let item: PhotoAssetItem?
+    let onDone: () -> Void
+
+    @State private var details = PhotoAssetDetails.placeholder
+    @State private var isLoading = true
+
+    var body: some View {
+        NavigationStack {
+            List {
+                infoRow(label: "Time", value: details.timeText)
+                infoRow(label: "Location", value: details.locationText)
+                infoRow(label: "Size", value: details.sizeText)
+                infoRow(label: "Format", value: details.formatText)
+            }
+            .overlay {
+                if isLoading {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Photo Info")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", action: onDone)
+                }
+            }
+            .task(id: item?.id) {
+                guard let item else {
+                    details = .placeholder
+                    isLoading = false
+                    return
+                }
+                isLoading = true
+                details = await photos.details(for: item)
+                isLoading = false
+            }
+        }
+    }
+
+    private func infoRow(label: String, value: String) -> some View {
+        LabeledContent(label) {
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
 }
 
 private struct CardFrameKey: PreferenceKey {

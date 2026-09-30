@@ -16,6 +16,8 @@ struct PhotosScreen: View {
     @State private var showNewAlbum = false
     @State private var newAlbumName = ""
     @State private var errorMessage: String?
+    @State private var albumByteCounts: [String: Int64] = [:]
+    @State private var basketByteCount: Int64 = 0
 
     var body: some View {
         NavigationStack {
@@ -43,19 +45,40 @@ struct PhotosScreen: View {
                         Button {
                             showBasket = true
                         } label: {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: "trash")
+                            HStack(spacing: 6) {
                                 if photos.pendingDeleteCount > 0 {
-                                    Text("\(photos.pendingDeleteCount)")
-                                        .font(.caption2.bold())
-                                        .foregroundStyle(.white)
-                                        .padding(4)
-                                        .background(Circle().fill(ABColor.danger))
-                                        .offset(x: 8, y: -8)
+                                    Text(ByteFormat.string(from: basketByteCount))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(ABColor.textSecondary)
+                                        .monospacedDigit()
                                 }
+                                Image(systemName: "trash")
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(ABColor.accent)
+                                    .frame(width: 22, height: 22)
+                                    .overlay(alignment: .topTrailing) {
+                                        if photos.pendingDeleteCount > 0 {
+                                            Text("\(photos.pendingDeleteCount)")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 2)
+                                                .background(Capsule().fill(ABColor.danger))
+                                                .offset(x: 10, y: -8)
+                                        }
+                                    }
                             }
+                            // Keep badge inside toolbar clip bounds.
+                            .padding(.top, 8)
+                            .padding(.trailing, 10)
+                            .padding(.bottom, 2)
+                            .contentShape(Rectangle())
                         }
-                        .accessibilityLabel("Delete basket")
+                        .accessibilityLabel(
+                            photos.pendingDeleteCount > 0
+                                ? "Delete basket, \(photos.pendingDeleteCount) items, \(ByteFormat.string(from: basketByteCount))"
+                                : "Delete basket"
+                        )
                     }
                 }
             }
@@ -82,6 +105,16 @@ struct PhotosScreen: View {
             }
             .task {
                 await photos.requestAccessAndLoad()
+                refreshSizeLabels()
+            }
+            .onChange(of: photos.albums) { _, _ in
+                refreshSizeLabels()
+            }
+            .onReceive(photos.reviewStore.$pendingDeleteIDs) { _ in
+                refreshSizeLabels()
+            }
+            .onAppear {
+                refreshSizeLabels()
             }
         }
     }
@@ -147,8 +180,10 @@ struct PhotosScreen: View {
                                                 .foregroundStyle(.secondary)
                                         }
                                         Spacer()
-                                        Image(systemName: "square.and.arrow.down")
+                                        Text(ByteFormat.string(from: albumByteCounts[album.id] ?? 0))
+                                            .font(.caption.weight(.semibold))
                                             .foregroundStyle(ABColor.accent)
+                                            .monospacedDigit()
                                     }
                                     .padding(12)
                                     .background(ABColor.surface)
@@ -265,13 +300,21 @@ struct PhotosScreen: View {
     }
 
     private func startOrganize(into album: PhotoAlbumItem) {
-        let kind: PhotoQueueKind = photos.count(for: .recentUnreviewed) > 0 ? .recentUnreviewed : .all
-        guard photos.count(for: kind) > 0 || photos.count(for: .all) > 0 else {
-            errorMessage = "No photos available to organize."
+        let albumPhotos = photos.assets(in: album)
+        guard !albumPhotos.isEmpty else {
+            errorMessage = "This album has no photos to organize."
             return
         }
-        let startKind = photos.count(for: kind) > 0 ? kind : .all
-        organize.start(kind: startKind, focusedAlbumID: album.id)
+        organize.start(album: album)
         showSession = true
+    }
+
+    private func refreshSizeLabels() {
+        var map: [String: Int64] = [:]
+        for album in photos.albums {
+            map[album.id] = photos.totalByteCount(in: album)
+        }
+        albumByteCounts = map
+        basketByteCount = photos.pendingDeleteByteCount
     }
 }
