@@ -1,17 +1,11 @@
 import SwiftUI
 import DesignSystem
 import BrowserKit
-import YouTubeKit
-import StorageKit
 
 struct BrowserScreen: View {
     @EnvironmentObject private var browser: BrowserController
-    @EnvironmentObject private var youtube: YouTubePlaybackService
-    @EnvironmentObject private var settings: SettingsStore
     @State private var showBookmarks = false
     @State private var showHistory = false
-    @State private var youtubeVideoID: String?
-    @State private var showYouTubePlayer = false
 
     var body: some View {
         NavigationStack {
@@ -42,11 +36,6 @@ struct BrowserScreen: View {
             }
             .sheet(isPresented: $showHistory) {
                 HistoryListView()
-            }
-            .sheet(isPresented: $showYouTubePlayer) {
-                if let youtubeVideoID {
-                    YouTubePlayerScreen(videoID: youtubeVideoID)
-                }
             }
         }
     }
@@ -106,7 +95,6 @@ struct BrowserScreen: View {
                 Button("Bookmarks") { showBookmarks = true }
                 Button("History") { showHistory = true }
                 Button("New Tab") { browser.addTab() }
-                Button("Play on YouTube") { openYouTubeIfNeeded() }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -151,23 +139,6 @@ struct BrowserScreen: View {
                 .padding(.vertical, 18)
                 .background(ABColor.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-    }
-
-    private func openYouTubeIfNeeded() {
-        let candidate = browser.addressText.isEmpty
-            ? (browser.selectedTab?.urlString ?? "")
-            : browser.addressText
-        if let id = YouTubeURLDetector.videoID(from: candidate) {
-            youtubeVideoID = id
-            showYouTubePlayer = true
-        } else if let id = YouTubeURLDetector.videoID(from: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
-                  candidate.isEmpty {
-            youtubeVideoID = id
-            showYouTubePlayer = true
-        } else {
-            // Try current page; if not YouTube, open YouTube home in browser.
-            browser.load("https://m.youtube.com", in: browser.selectedTabID)
         }
     }
 }
