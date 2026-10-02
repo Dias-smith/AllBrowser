@@ -49,14 +49,14 @@ public final class BrowserController: ObservableObject {
     private var webViews: [UUID: WKWebView] = [:]
     private var ruleList: WKContentRuleList?
 
-    /// Returns a YouTube video id when the URL should be intercepted for local playback.
-    public var youtubeVideoIDFromURL: ((URL) -> String?)?
-    /// Set when a YouTube video navigation is cancelled for local playback.
-    @Published public var pendingLocalYouTube: PendingLocalYouTube?
+    /// Returns a video id when the URL should be intercepted for local playback.
+    public var streamVideoIDFromURL: ((URL) -> String?)?
+    /// Set when a video navigation is cancelled for local playback.
+    @Published public var pendingLocalStream: PendingLocalStream?
     /// Video IDs allowed to load in the webview once (fallback after local play fails).
-    private var passthroughYouTubeVideoIDs: Set<String> = []
+    private var passthroughStreamVideoIDs: Set<String> = []
 
-    public struct PendingLocalYouTube: Equatable {
+    public struct PendingLocalStream: Equatable {
         public let videoID: String
         public let url: URL
         public let token: UUID
@@ -85,13 +85,13 @@ public final class BrowserController: ObservableObject {
         self.selectedTabID = first.id
     }
 
-    public func allowNextYouTubeNavigation(videoID: String) {
-        passthroughYouTubeVideoIDs.insert(videoID)
+    public func allowNextStreamNavigation(videoID: String) {
+        passthroughStreamVideoIDs.insert(videoID)
     }
 
     @discardableResult
-    public func consumeYouTubePassthrough(videoID: String) -> Bool {
-        passthroughYouTubeVideoIDs.remove(videoID) != nil
+    public func consumeStreamPassthrough(videoID: String) -> Bool {
+        passthroughStreamVideoIDs.remove(videoID) != nil
     }
 
     public var selectedTab: BrowserTab? {
@@ -250,7 +250,7 @@ public final class BrowserController: ObservableObject {
         }
     }
 
-    /// Copies YouTube cookies from the browser's WKWebView data store into
+    /// Copies site cookies from the browser's WKWebView data store into
     /// `HTTPCookieStorage.shared` so URLSession-based resolvers share the session.
     public func syncWebsiteCookiesToSharedStorage() async {
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
@@ -262,7 +262,7 @@ public final class BrowserController: ObservableObject {
                 for cookie in youtubeCookies {
                     HTTPCookieStorage.shared.setCookie(cookie)
                 }
-                print("[YT] Synced \(youtubeCookies.count) browser cookies to URLSession")
+                print("[Stream] Synced \(youtubeCookies.count) browser cookies to URLSession")
                 cont.resume()
             }
         }
@@ -331,7 +331,7 @@ public struct BrowserWebView: UIViewRepresentable {
                         }
                     }
                 },
-                // Catch SPA URL changes (YouTube watch / shorts) that skip full reloads.
+                // Catch SPA URL changes (watch / shorts) that skip full reloads.
                 webView.observe(\.url, options: [.new]) { [weak self] webView, _ in
                     guard let self else { return }
                     Task { @MainActor in
@@ -369,14 +369,14 @@ public struct BrowserWebView: UIViewRepresentable {
             }
 
             Task { @MainActor in
-                if let videoID = self.controller.youtubeVideoIDFromURL?(url) {
-                    if self.controller.consumeYouTubePassthrough(videoID: videoID) {
+                if let videoID = self.controller.streamVideoIDFromURL?(url) {
+                    if self.controller.consumeStreamPassthrough(videoID: videoID) {
                         decisionHandler(.allow)
                         return
                     }
-                    print("[YT] Intercept YouTube navigation id=\(videoID) — cancel page load")
+                    print("[Stream] Intercept stream navigation id=\(videoID) — cancel page load")
                     decisionHandler(.cancel)
-                    self.controller.pendingLocalYouTube = .init(videoID: videoID, url: url)
+                    self.controller.pendingLocalStream = .init(videoID: videoID, url: url)
                     return
                 }
                 decisionHandler(.allow)

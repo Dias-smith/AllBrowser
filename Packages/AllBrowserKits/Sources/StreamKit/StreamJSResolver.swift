@@ -1,71 +1,71 @@
 import Foundation
 
 /// Tries JS stream extraction first, then native Innertube, then oEmbed metadata.
-public struct YouTubeChainedResolver: StreamResolving {
+public struct ChainedStreamResolver: StreamResolving {
     private let resolvers: [StreamResolving]
 
     public init(
         resolvers: [StreamResolving] = [
             // YTLite fast path: ANDROID + signatureTimestamp → plain googlevideo URLs.
-            YouTubeAndroidPlayerResolver(),
-            YouTubeJSStreamResolver(),
-            YouTubeWatchPageResolver(),
-            YouTubeInnertubeResolver(),
+            AndroidPlayerResolver(),
+            StreamJSResolver(),
+            StreamWatchPageResolver(),
+            StreamInnertubeResolver(),
         ]
     ) {
         self.resolvers = resolvers
     }
 
-    public func resolve(videoID: String) async throws -> YouTubeVideoInfo {
-        YouTubeLog.info("ChainedResolver start videoID=\(videoID) resolvers=\(resolvers.count)")
-        var lastError: Error = YouTubeJSExtractorError.extractFailed
+    public func resolve(videoID: String) async throws -> StreamVideoInfo {
+        StreamLog.info("ChainedResolver start videoID=\(videoID) resolvers=\(resolvers.count)")
+        var lastError: Error = StreamJSExtractorError.extractFailed
 
         for resolver in resolvers {
             let name = String(describing: type(of: resolver))
             do {
-                YouTubeLog.info("Trying resolver \(name)")
+                StreamLog.info("Trying resolver \(name)")
                 let info = try await resolver.resolve(videoID: videoID)
                 if let url = info.streamURL {
-                    YouTubeLog.info("Resolver \(name) OK title=\(info.title) url=\(YouTubeLog.truncate(url.absoluteString))")
+                    StreamLog.info("Resolver \(name) OK title=\(info.title) url=\(StreamLog.truncate(url.absoluteString))")
                     return info
                 }
-                YouTubeLog.info("Resolver \(name) returned no streamURL (embed/fallback)")
+                StreamLog.info("Resolver \(name) returned no streamURL (embed/fallback)")
             } catch {
-                YouTubeLog.error("Resolver \(name) failed", error: error)
+                StreamLog.error("Resolver \(name) failed", error: error)
                 lastError = error
             }
         }
 
-        YouTubeLog.error("ChainedResolver exhausted for \(videoID)", error: lastError)
+        StreamLog.error("ChainedResolver exhausted for \(videoID)", error: lastError)
         throw lastError
     }
 }
 
-/// Resolves YouTube watch URLs to progressive stream URLs via bundled `resolution.js`.
-public struct YouTubeJSStreamResolver: StreamResolving {
+/// Resolves watch URLs to progressive stream URLs via bundled `resolution.js`.
+public struct StreamJSResolver: StreamResolving {
     public init() {}
 
-    public func resolve(videoID: String) async throws -> YouTubeVideoInfo {
+    public func resolve(videoID: String) async throws -> StreamVideoInfo {
         let watchURL = "https://www.youtube.com/watch?v=\(videoID)"
-        YouTubeLog.info("JSStreamResolver extract \(watchURL)")
-        let payload = try await YouTubeJSExtractor.shared.extract(watchURL: watchURL)
-        YouTubeLog.info("JSStreamResolver payload keys=\(Array(payload.keys).sorted())")
+        StreamLog.info("JSStreamResolver extract \(watchURL)")
+        let payload = try await StreamJSExtractor.shared.extract(watchURL: watchURL)
+        StreamLog.info("JSStreamResolver payload keys=\(Array(payload.keys).sorted())")
 
         let music = payload["music"] as? [String: Any]
         guard let music else {
-            YouTubeLog.error("JSStreamResolver missing music key payload=\(YouTubeLog.truncate(String(describing: payload), limit: 300))")
-            throw YouTubeJSExtractorError.extractFailed
+            StreamLog.error("JSStreamResolver missing music key payload=\(StreamLog.truncate(String(describing: payload), limit: 300))")
+            throw StreamJSExtractorError.extractFailed
         }
 
-        let title = (music["title"] as? String)?.nilIfEmpty ?? "YouTube"
+        let title = (music["title"] as? String)?.nilIfEmpty ?? "Video"
         let author = (music["uploader"] as? String)?.nilIfEmpty
             ?? (music["author"] as? String)?.nilIfEmpty
             ?? ""
         let thumbURL = Self.bestThumbnail(from: music["thumbnails"])
         let formats = (music["formats"] as? [[String: Any]]) ?? []
-        YouTubeLog.info("JSStreamResolver music title=\(title) formats=\(formats.count)")
+        StreamLog.info("JSStreamResolver music title=\(title) formats=\(formats.count)")
 
-        guard let streamURL = YouTubeFormatPicker.bestPlayableURL(from: formats) else {
+        guard let streamURL = StreamFormatPicker.bestPlayableURL(from: formats) else {
             let sample = formats.prefix(3).map { fmt -> String in
                 let itag = fmt["itag"] ?? "?"
                 let hasURL = (fmt["url"] as? String)?.isEmpty == false
@@ -73,12 +73,12 @@ public struct YouTubeJSStreamResolver: StreamResolving {
                     || (fmt["cipher"] as? String)?.isEmpty == false
                 return "itag=\(itag) url=\(hasURL) cipher=\(cipher)"
             }
-            YouTubeLog.error("JSStreamResolver no playable URL sample=\(sample)")
-            throw YouTubeJSExtractorError.noPlayableURL
+            StreamLog.error("JSStreamResolver no playable URL sample=\(sample)")
+            throw StreamJSExtractorError.noPlayableURL
         }
 
-        YouTubeLog.info("JSStreamResolver picked \(YouTubeLog.truncate(streamURL.absoluteString))")
-        return YouTubeVideoInfo(
+        StreamLog.info("JSStreamResolver picked \(StreamLog.truncate(streamURL.absoluteString))")
+        return StreamVideoInfo(
             videoID: videoID,
             title: title,
             author: author,

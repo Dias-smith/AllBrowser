@@ -15,7 +15,7 @@ let package = Package(
         .library(name: "DownloadsKit", targets: ["DownloadsKit"]),
         .library(name: "PhotosKit", targets: ["PhotosKit"]),
         .library(name: "CachePhotosKit", targets: ["CachePhotosKit"]),
-        .library(name: "YouTubeKit", targets: ["YouTubeKit"]),
+        .library(name: "StreamKit", targets: ["StreamKit"]),
     ],
     targets: [
         .target(name: "DesignSystem"),
@@ -29,7 +29,7 @@ let package = Package(
         .target(name: "PhotosKit", dependencies: ["StorageKit"]),
         .target(name: "CachePhotosKit", dependencies: ["StorageKit"]),
         .target(
-            name: "YouTubeKit",
+            name: "StreamKit",
             dependencies: ["MediaKit", "StorageKit"],
             resources: [
                 .copy("Resources/resolution.js"),

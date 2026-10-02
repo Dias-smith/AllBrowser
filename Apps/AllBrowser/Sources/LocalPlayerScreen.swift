@@ -1,22 +1,22 @@
 import SwiftUI
 import DesignSystem
-import YouTubeKit
+import StreamKit
 import MediaKit
 import PlaylistKit
 import StorageKit
 
-struct YouTubePlayerScreen: View {
+struct LocalPlayerScreen: View {
     let videoID: String
-    var preloaded: YouTubeVideoInfo? = nil
+    var preloaded: StreamVideoInfo? = nil
     /// Called once when local resolve/play settles. `true` = playing locally.
     var onSettled: ((Bool) -> Void)? = nil
 
-    @EnvironmentObject private var youtube: YouTubePlaybackService
+    @EnvironmentObject private var youtube: StreamPlaybackService
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var playlists: PlaylistStore
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
-    @State private var info: YouTubeVideoInfo?
+    @State private var info: StreamVideoInfo?
     @State private var didReportSettled = false
 
     private var hasLocalStream: Bool {
@@ -90,7 +90,7 @@ struct YouTubePlayerScreen: View {
                 }
             }
             .background(ABColor.background)
-            .navigationTitle("YouTube")
+            .navigationTitle("Local Player")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -104,12 +104,12 @@ struct YouTubePlayerScreen: View {
     }
 
     private func resolveAndPlay(forceNetwork: Bool) async {
-        YouTubeLog.info("PlayerScreen resolve forceNetwork=\(forceNetwork) videoID=\(videoID) preloaded=\(preloaded?.streamURL != nil)")
+        StreamLog.info("PlayerScreen resolve forceNetwork=\(forceNetwork) videoID=\(videoID) preloaded=\(preloaded?.streamURL != nil)")
         if !forceNetwork,
            let preloaded,
            preloaded.streamURL != nil,
            !preloaded.usesEmbedFallback {
-            YouTubeLog.info("PlayerScreen using preloaded \(YouTubeLog.truncate(preloaded.streamURL?.absoluteString))")
+            StreamLog.info("PlayerScreen using preloaded \(StreamLog.truncate(preloaded.streamURL?.absoluteString))")
             info = preloaded
             youtube.play(info: preloaded, using: playback)
             reportSettled(true)
@@ -120,11 +120,11 @@ struct YouTubePlayerScreen: View {
         let resolved = await youtube.prepare(videoID: videoID)
         info = resolved
         if let resolved, resolved.streamURL != nil, !resolved.usesEmbedFallback {
-            YouTubeLog.info("PlayerScreen network resolve OK")
+            StreamLog.info("PlayerScreen network resolve OK")
             youtube.play(info: resolved, using: playback)
             reportSettled(true)
         } else {
-            YouTubeLog.error("PlayerScreen unavailable err=\(youtube.errorMessage ?? "nil")")
+            StreamLog.error("PlayerScreen unavailable err=\(youtube.errorMessage ?? "nil")")
             reportSettled(false)
         }
     }

@@ -1,17 +1,17 @@
 import Foundation
 
-/// Debug logging for YouTube local-player / stream resolution.
-/// Filter Xcode console with: `[YT]`
-public enum YouTubeLog {
+/// Debug logging for local-player / stream resolution.
+/// Filter Xcode console with: `[Stream]`
+public enum StreamLog {
     public static func info(_ message: String, file: StaticString = #fileID, line: UInt = #line) {
-        print("[YT] \(message) (\(file):\(line))")
+        print("[Stream] \(message) (\(file):\(line))")
     }
 
     public static func error(_ message: String, error: Error? = nil, file: StaticString = #fileID, line: UInt = #line) {
         if let error {
-            print("[YT][ERR] \(message) | \(error.localizedDescription) (\(file):\(line))")
+            print("[Stream][ERR] \(message) | \(error.localizedDescription) (\(file):\(line))")
         } else {
-            print("[YT][ERR] \(message) (\(file):\(line))")
+            print("[Stream][ERR] \(message) (\(file):\(line))")
         }
     }
 

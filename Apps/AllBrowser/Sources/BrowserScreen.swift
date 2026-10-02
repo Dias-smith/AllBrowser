@@ -2,7 +2,7 @@ import SwiftUI
 import DesignSystem
 import BrowserKit
 import StorageKit
-import YouTubeKit
+import StreamKit
 
 struct BrowserScreen: View {
     @EnvironmentObject private var browser: BrowserController
@@ -44,7 +44,7 @@ struct BrowserScreen: View {
                 HistoryListView()
             }
             .sheet(item: $localPlayerVideo) { request in
-                YouTubePlayerScreen(videoID: request.id, preloaded: request.preloaded) { success in
+                LocalPlayerScreen(videoID: request.id, preloaded: request.preloaded) { success in
                     handleLocalPlaybackSettled(success: success, request: request)
                 }
             }
@@ -57,17 +57,17 @@ struct BrowserScreen: View {
                 Text(playerError ?? "")
             }
             .onAppear {
-                installYouTubeInterceptHandlers()
+                installStreamInterceptHandlers()
             }
             .onChange(of: settings.settings.youtubeOpenInLocalPlayer) { _, enabled in
-                installYouTubeInterceptHandlers()
+                installStreamInterceptHandlers()
                 if !enabled {
                     lastAutoPlayedVideoID = nil
                 }
             }
-            .onChange(of: browser.pendingLocalYouTube?.token) { _, _ in
-                guard let pending = browser.pendingLocalYouTube else { return }
-                browser.pendingLocalYouTube = nil
+            .onChange(of: browser.pendingLocalStream?.token) { _, _ in
+                guard let pending = browser.pendingLocalStream else { return }
+                browser.pendingLocalStream = nil
                 presentLocalPlayer(
                     videoID: pending.videoID,
                     fallbackURL: pending.url.absoluteString,
@@ -81,26 +81,26 @@ struct BrowserScreen: View {
         }
     }
 
-    private func installYouTubeInterceptHandlers() {
+    private func installStreamInterceptHandlers() {
         guard settings.settings.youtubeOpenInLocalPlayer else {
-            browser.youtubeVideoIDFromURL = nil
+            browser.streamVideoIDFromURL = nil
             return
         }
-        browser.youtubeVideoIDFromURL = { url in
-            YouTubeURLDetector.videoID(from: url)
+        browser.streamVideoIDFromURL = { url in
+            StreamURLDetector.videoID(from: url)
         }
     }
 
-    /// When YouTube SPA already updated the address bar, open local player and
+    /// When SPA already updated the address bar, open local player and
     /// restore the previous page on success.
     private func handleSPALocalPlayIfNeeded(urlString: String?) async {
         guard settings.settings.youtubeOpenInLocalPlayer else { return }
         guard let urlString, !urlString.isEmpty,
-              let id = YouTubeURLDetector.videoID(from: urlString) else { return }
+              let id = StreamURLDetector.videoID(from: urlString) else { return }
         guard id != lastAutoPlayedVideoID else { return }
         guard localPlayerVideo?.id != id else { return }
 
-        YouTubeLog.info("SPA local-play detected id=\(id)")
+        StreamLog.info("SPA local-play detected id=\(id)")
         presentLocalPlayer(
             videoID: id,
             fallbackURL: urlString,
@@ -114,8 +114,8 @@ struct BrowserScreen: View {
         restorePreviousOnSuccess: Bool
     ) {
         lastAutoPlayedVideoID = videoID
-        YouTubeLog.info(
-            "Present local player id=\(videoID) restorePrev=\(restorePreviousOnSuccess) fallback=\(YouTubeLog.truncate(fallbackURL))"
+        StreamLog.info(
+            "Present local player id=\(videoID) restorePrev=\(restorePreviousOnSuccess) fallback=\(StreamLog.truncate(fallbackURL))"
         )
         localPlayerVideo = LocalPlayerRequest(
             id: videoID,
@@ -127,17 +127,17 @@ struct BrowserScreen: View {
 
     private func handleLocalPlaybackSettled(success: Bool, request: LocalPlayerRequest) {
         if success {
-            YouTubeLog.info("Local play success — stay in player, skip page playback")
+            StreamLog.info("Local play success — stay in player, skip page playback")
             if request.restorePreviousOnSuccess,
-               YouTubeURLDetector.videoID(from: browser.currentPageURLString()) == request.id {
+               StreamURLDetector.videoID(from: browser.currentPageURLString()) == request.id {
                 browser.goBack()
             }
             return
         }
 
-        YouTubeLog.info("Local play failed — fallback to page \(YouTubeLog.truncate(request.fallbackURL))")
+        StreamLog.info("Local play failed — fallback to page \(StreamLog.truncate(request.fallbackURL))")
         localPlayerVideo = nil
-        browser.allowNextYouTubeNavigation(videoID: request.id)
+        browser.allowNextStreamNavigation(videoID: request.id)
         // Keep lastAutoPlayedVideoID so SPA onChange won't immediately re-open local player.
         browser.load(request.fallbackURL, in: browser.selectedTabID)
     }
@@ -197,7 +197,7 @@ struct BrowserScreen: View {
                 Button("Bookmarks") { showBookmarks = true }
                 Button("History") { showHistory = true }
                 Button("New Tab") { browser.addTab() }
-                Toggle("Play YouTube locally", isOn: Binding(
+                Toggle("Play with local player", isOn: Binding(
                     get: { settings.settings.youtubeOpenInLocalPlayer },
                     set: { value in settings.update { $0.youtubeOpenInLocalPlayer = value } }
                 ))
@@ -223,7 +223,7 @@ struct BrowserScreen: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 quickLink(title: "Google", url: "https://www.google.com")
                 quickLink(title: "Facebook", url: "https://www.facebook.com")
-                quickLink(title: "YouTube", url: "https://m.youtube.com")
+                quickLink(title: "Videos", url: "https://m.youtube.com")
                 quickLink(title: "Amazon", url: "https://www.amazon.com")
                 quickLink(title: "Instagram", url: "https://www.instagram.com")
                 quickLink(title: "TikTok", url: "https://www.tiktok.com")
@@ -253,15 +253,15 @@ struct BrowserScreen: View {
         await handleSPALocalPlayIfNeeded(urlString: urlString)
     }
 
-    private func openLocalYouTubePlayer(preferredID: String? = nil) async {
+    private func openLocalPlayer(preferredID: String? = nil) async {
         let id: String
         if let preferredID {
             id = preferredID
-        } else if let resolved = await resolveCurrentYouTubeVideoID() {
+        } else if let resolved = await resolveCurrentStreamVideoID() {
             id = resolved
         } else {
-            YouTubeLog.error("openLocalYouTubePlayer — no video id")
-            playerError = "Open a YouTube video page first, then try again."
+            StreamLog.error("openLocalPlayer — no video id")
+            playerError = "Open a video page first, then try again."
             return
         }
         let fallback = browser.currentPageURLString().isEmpty
@@ -274,16 +274,16 @@ struct BrowserScreen: View {
         )
     }
 
-    private func resolveCurrentYouTubeVideoID() async -> String? {
+    private func resolveCurrentStreamVideoID() async -> String? {
         let pageURL = browser.currentPageURLString()
-        if let id = YouTubeURLDetector.videoID(from: pageURL) {
+        if let id = StreamURLDetector.videoID(from: pageURL) {
             return id
         }
-        if let id = YouTubeURLDetector.videoID(from: browser.addressText) {
+        if let id = StreamURLDetector.videoID(from: browser.addressText) {
             return id
         }
 
-        // YouTube mobile SPA sometimes keeps a short URL in the bar; ask the page.
+        // Mobile SPA sometimes keeps a short URL in the bar; ask the page.
         let script = """
         (function() {
           try {
@@ -306,7 +306,7 @@ struct BrowserScreen: View {
         })();
         """
         if let raw = await browser.evaluateJavaScript(script) as? String {
-            return YouTubeURLDetector.videoID(from: "https://www.youtube.com/watch?v=\(raw)") ?? raw
+            return StreamURLDetector.videoID(from: "https://www.youtube.com/watch?v=\(raw)") ?? raw
         }
         return nil
     }
@@ -314,7 +314,7 @@ struct BrowserScreen: View {
     /// Pulls a playable URL from the visible tab. Prefers an in-page Innertube
     /// `/player` call (same cookies that already passed bot checks), then DOM /
     /// script scraping.
-    private func extractStreamFromCurrentPage(videoID: String) async -> YouTubeVideoInfo? {
+    private func extractStreamFromCurrentPage(videoID: String) async -> StreamVideoInfo? {
         let playerAPIScript = """
         (async function(videoId) {
           var cfg = (window.ytcfg && window.ytcfg.data_) || {};
@@ -421,7 +421,7 @@ struct BrowserScreen: View {
         })('\(videoID)');
         """
         if let raw = await browser.evaluateJavaScript(playerAPIScript) as? String {
-            YouTubeLog.info("in-page playerAPI raw=\(YouTubeLog.truncate(raw, limit: 240))")
+            StreamLog.info("in-page playerAPI raw=\(StreamLog.truncate(raw, limit: 240))")
             if let info = decodePageExtractPayload(raw, videoID: videoID) {
                 return info
             }
@@ -453,7 +453,7 @@ struct BrowserScreen: View {
               var t = document.querySelector('meta[name="title"], meta[property="og:title"]');
               if (t && t.content) return t.content;
             } catch (e) {}
-            return document.title || 'YouTube';
+            return document.title || 'Video';
           }
           function pickVideoURL() {
             var videos = document.querySelectorAll('video');
@@ -517,20 +517,20 @@ struct BrowserScreen: View {
         return nil
     }
 
-    private func decodePageExtractPayload(_ raw: String, videoID: String) -> YouTubeVideoInfo? {
+    private func decodePageExtractPayload(_ raw: String, videoID: String) -> StreamVideoInfo? {
         guard let data = raw.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let kind = obj["kind"] as? String else {
             do {
-                return try YouTubePlayerResponseMapper.videoInfo(videoID: videoID, playerJSON: raw)
+                return try StreamPlayerResponseMapper.videoInfo(videoID: videoID, playerJSON: raw)
             } catch {
-                YouTubeLog.error("decode raw player JSON failed", error: error)
+                StreamLog.error("decode raw player JSON failed", error: error)
                 return nil
             }
         }
 
         if kind == "diag" {
-            YouTubeLog.info(
+            StreamLog.info(
                 "in-page playerAPI diag client=\(obj["client"] ?? "") status=\(obj["httpStatus"] ?? "") playability=\(obj["playability"] ?? "") reason=\(obj["reason"] ?? "") formats=\(obj["formats"] ?? "") withURL=\(obj["withURL"] ?? "") hls=\(obj["hls"] ?? "") error=\(obj["error"] ?? "")"
             )
             return nil
@@ -541,21 +541,21 @@ struct BrowserScreen: View {
            let url = URL(string: urlString),
            url.scheme?.hasPrefix("http") == true {
             let title = (obj["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return YouTubePlayerResponseMapper.videoInfo(
+            return StreamPlayerResponseMapper.videoInfo(
                 videoID: videoID,
-                title: (title?.isEmpty == false ? title! : "YouTube"),
+                title: (title?.isEmpty == false ? title! : "Video"),
                 streamURL: url
             )
         }
 
         if kind == "player", let json = obj["json"] as? String {
-            YouTubeLog.info(
+            StreamLog.info(
                 "in-page player payload client=\(obj["client"] ?? "?") http=\(obj["httpStatus"] ?? "?") withURL=\(obj["withURL"] ?? "?") hls=\(obj["hls"] ?? "?")"
             )
             do {
-                return try YouTubePlayerResponseMapper.videoInfo(videoID: videoID, playerJSON: json)
+                return try StreamPlayerResponseMapper.videoInfo(videoID: videoID, playerJSON: json)
             } catch {
-                YouTubeLog.error("in-page player JSON not playable", error: error)
+                StreamLog.error("in-page player JSON not playable", error: error)
                 return nil
             }
         }
@@ -565,7 +565,7 @@ struct BrowserScreen: View {
 
 private struct LocalPlayerRequest: Identifiable {
     let id: String
-    var preloaded: YouTubeVideoInfo?
+    var preloaded: StreamVideoInfo?
     var fallbackURL: String
     /// When true (SPA already navigated), goBack() after local play succeeds.
     var restorePreviousOnSuccess: Bool

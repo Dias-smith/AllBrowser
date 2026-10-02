@@ -1,24 +1,24 @@
 import Foundation
 import WebKit
 
-/// Shared helpers for turning a YouTube player response JSON object into `YouTubeVideoInfo`.
-public enum YouTubePlayerResponseMapper {
+/// Shared helpers for turning a player response JSON object into `StreamVideoInfo`.
+public enum StreamPlayerResponseMapper {
     /// Parses a JSON string of `ytInitialPlayerResponse` into playable video info.
-    public static func videoInfo(videoID: String, playerJSON: String) throws -> YouTubeVideoInfo {
+    public static func videoInfo(videoID: String, playerJSON: String) throws -> StreamVideoInfo {
         guard let player = parseJSONObject(playerJSON) else {
-            throw YouTubeJSExtractorError.invalidPayload
+            throw StreamJSExtractorError.invalidPayload
         }
         return try videoInfo(videoID: videoID, player: player)
     }
 
     public static func videoInfo(
         videoID: String,
-        title: String = "YouTube",
+        title: String = "Video",
         author: String = "",
         thumbnailURL: URL? = nil,
         streamURL: URL
-    ) -> YouTubeVideoInfo {
-        YouTubeVideoInfo(
+    ) -> StreamVideoInfo {
+        StreamVideoInfo(
             videoID: videoID,
             title: title,
             author: author,
@@ -28,30 +28,30 @@ public enum YouTubePlayerResponseMapper {
         )
     }
 
-    static func videoInfo(videoID: String, player: [String: Any]) throws -> YouTubeVideoInfo {
+    static func videoInfo(videoID: String, player: [String: Any]) throws -> StreamVideoInfo {
         let playability = player["playabilityStatus"] as? [String: Any]
         if let st = playability?["status"] as? String, st != "OK" {
             let reason = (playability?["reason"] as? String) ?? st
-            YouTubeLog.info("PlayerResponse status=\(st) reason=\(reason)")
+            StreamLog.info("PlayerResponse status=\(st) reason=\(reason)")
             // Still allow HLS / formats if present (some challenge pages keep partial data).
             let streaming = player["streamingData"] as? [String: Any] ?? [:]
             let hasStream = streaming["hlsManifestUrl"] != nil
                 || ((streaming["formats"] as? [Any])?.isEmpty == false)
                 || ((streaming["adaptiveFormats"] as? [Any])?.isEmpty == false)
             if !hasStream {
-                throw YouTubeJSExtractorError.message(reason)
+                throw StreamJSExtractorError.message(reason)
             }
         }
 
         let details = player["videoDetails"] as? [String: Any]
-        let title = (details?["title"] as? String) ?? "YouTube"
+        let title = (details?["title"] as? String) ?? "Video"
         let author = (details?["author"] as? String) ?? ""
         let thumbs = ((details?["thumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]]) ?? []
         let thumbURL = thumbs.compactMap { $0["url"] as? String }.last.flatMap(URL.init(string:))
 
         let streaming = player["streamingData"] as? [String: Any] ?? [:]
         if let hls = streaming["hlsManifestUrl"] as? String, let hlsURL = URL(string: hls) {
-            return YouTubeVideoInfo(
+            return StreamVideoInfo(
                 videoID: videoID,
                 title: title,
                 author: author,
@@ -64,18 +64,18 @@ public enum YouTubePlayerResponseMapper {
         var formats = (streaming["formats"] as? [[String: Any]]) ?? []
         formats += (streaming["adaptiveFormats"] as? [[String: Any]]) ?? []
 
-        guard let streamURL = YouTubeFormatPicker.bestPlayableURL(from: formats) else {
+        guard let streamURL = StreamFormatPicker.bestPlayableURL(from: formats) else {
             let withURL = formats.filter { ($0["url"] as? String)?.isEmpty == false }.count
             let withCipher = formats.filter {
                 ($0["signatureCipher"] as? String)?.isEmpty == false || ($0["cipher"] as? String)?.isEmpty == false
             }.count
-            YouTubeLog.error(
+            StreamLog.error(
                 "PlayerResponse no playable URL formats=\(formats.count) withURL=\(withURL) withCipher=\(withCipher) hls=\(streaming["hlsManifestUrl"] != nil)"
             )
-            throw YouTubeJSExtractorError.noPlayableURL
+            throw StreamJSExtractorError.noPlayableURL
         }
 
-        return YouTubeVideoInfo(
+        return StreamVideoInfo(
             videoID: videoID,
             title: title,
             author: author,
@@ -93,35 +93,35 @@ public enum YouTubePlayerResponseMapper {
 
 /// Fetches watch HTML via URLSession. Secondary path when the live browser tab
 /// did not already expose a stream URL.
-public struct YouTubeWatchPageResolver: StreamResolving {
+public struct StreamWatchPageResolver: StreamResolving {
     public init() {}
 
-    public func resolve(videoID: String) async throws -> YouTubeVideoInfo {
-        YouTubeLog.info("WatchPageResolver start \(videoID)")
+    public func resolve(videoID: String) async throws -> StreamVideoInfo {
+        StreamLog.info("WatchPageResolver start \(videoID)")
         let urls = [
             "https://m.youtube.com/watch?v=\(videoID)&bpctr=9999999999&has_verified=1",
             "https://www.youtube.com/watch?v=\(videoID)&bpctr=9999999999&has_verified=1",
         ]
-        var lastError: Error = YouTubeJSExtractorError.extractFailed
+        var lastError: Error = StreamJSExtractorError.extractFailed
 
         for urlString in urls {
             guard let url = URL(string: urlString) else { continue }
             do {
-                YouTubeLog.info("WatchPageResolver fetch \(url.host ?? "")")
+                StreamLog.info("WatchPageResolver fetch \(url.host ?? "")")
                 if let info = try await fetchWatchPage(url: url, videoID: videoID) {
-                    YouTubeLog.info("WatchPageResolver OK url=\(YouTubeLog.truncate(info.streamURL?.absoluteString))")
+                    StreamLog.info("WatchPageResolver OK url=\(StreamLog.truncate(info.streamURL?.absoluteString))")
                     return info
                 }
-                YouTubeLog.info("WatchPageResolver empty response \(url.host ?? "")")
+                StreamLog.info("WatchPageResolver empty response \(url.host ?? "")")
             } catch {
-                YouTubeLog.error("WatchPageResolver fail \(url.host ?? "")", error: error)
+                StreamLog.error("WatchPageResolver fail \(url.host ?? "")", error: error)
                 lastError = error
             }
         }
         throw lastError
     }
 
-    private func fetchWatchPage(url: URL, videoID: String) async throws -> YouTubeVideoInfo? {
+    private func fetchWatchPage(url: URL, videoID: String) async throws -> StreamVideoInfo? {
         var request = URLRequest(url: url)
         request.setValue(
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
@@ -140,10 +140,10 @@ public struct YouTubeWatchPageResolver: StreamResolving {
         guard let player = Self.extractPlayerResponse(from: html) else {
             let bot = html.localizedCaseInsensitiveContains("Sign in to confirm")
                 || html.localizedCaseInsensitiveContains("not a bot")
-            YouTubeLog.error("WatchPageResolver no player JSON bytes=\(html.count) bot=\(bot)")
-            throw YouTubeJSExtractorError.message("Player response not found in watch page.")
+            StreamLog.error("WatchPageResolver no player JSON bytes=\(html.count) bot=\(bot)")
+            throw StreamJSExtractorError.message("Player response not found in watch page.")
         }
-        return try YouTubePlayerResponseMapper.videoInfo(videoID: videoID, player: player)
+        return try StreamPlayerResponseMapper.videoInfo(videoID: videoID, player: player)
     }
 
     static func extractPlayerResponse(from html: String) -> [String: Any]? {
@@ -152,7 +152,7 @@ public struct YouTubeWatchPageResolver: StreamResolving {
             if let eq = after.firstIndex(of: "="),
                let start = after[eq...].firstIndex(of: "{"),
                let blob = extractJSONObject(from: html, start: start),
-               let obj = YouTubePlayerResponseMapper.parseJSONObject(blob),
+               let obj = StreamPlayerResponseMapper.parseJSONObject(blob),
                obj["streamingData"] != nil || obj["videoDetails"] != nil {
                 return obj
             }
@@ -172,7 +172,7 @@ public struct YouTubeWatchPageResolver: StreamResolving {
         let prefix = html[..<index]
         if let ctx = prefix.range(of: "{\"responseContext\"", options: .backwards)?.lowerBound,
            let blob = extractJSONObject(from: html, start: ctx),
-           let obj = YouTubePlayerResponseMapper.parseJSONObject(blob),
+           let obj = StreamPlayerResponseMapper.parseJSONObject(blob),
            obj["streamingData"] != nil {
             return obj
         }
@@ -182,7 +182,7 @@ public struct YouTubeWatchPageResolver: StreamResolving {
         while attempts < 40, i > html.startIndex {
             if html[i] == "{" {
                 if let blob = extractJSONObject(from: html, start: i),
-                   let obj = YouTubePlayerResponseMapper.parseJSONObject(blob),
+                   let obj = StreamPlayerResponseMapper.parseJSONObject(blob),
                    obj["streamingData"] != nil {
                     return obj
                 }

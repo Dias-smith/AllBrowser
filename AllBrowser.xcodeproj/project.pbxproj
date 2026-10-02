@@ -14,8 +14,8 @@
 		1FE7629B9B26B9182A486EE5 /* DownloadsKit in Frameworks */ = {isa = PBXBuildFile; productRef = E0A27ED67EEE53FACC2379A8 /* DownloadsKit */; };
 		200E1F9B724BACDC8F067EF6 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE72F89304169B9D90E04A6A /* SettingsScreen.swift */; };
 		21F219D04D531835673A80D7 /* PlaylistKit in Frameworks */ = {isa = PBXBuildFile; productRef = CCFD0352BE66B6BA441D27B3 /* PlaylistKit */; };
-		4A375969E1A62B6693EB8E0E /* YouTubePlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6231189A3B283B26C61AA015 /* YouTubePlayerScreen.swift */; };
-		4D8311CEBA388A6F2B951302 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 65AB10565258995FE04C25A9 /* YouTubeKit */; };
+		4A375969E1A62B6693EB8E0E /* LocalPlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6231189A3B283B26C61AA015 /* LocalPlayerScreen.swift */; };
+		4D8311CEBA388A6F2B951302 /* StreamKit in Frameworks */ = {isa = PBXBuildFile; productRef = 65AB10565258995FE04C25A9 /* StreamKit */; };
 		5753277E506E956A900B152D /* AppLockScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49783C2FB45F7753989E81C2 /* AppLockScreen.swift */; };
 		779BD0420A9C87304658AACF /* AdBlockKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7091B5384ACF1F3913E56770 /* AdBlockKit */; };
 		7AB6F5536D41F91745C7DE8E /* CachePhotosKit in Frameworks */ = {isa = PBXBuildFile; productRef = B8C88964B257AD58382574C6 /* CachePhotosKit */; };
@@ -66,7 +66,7 @@
 		49783C2FB45F7753989E81C2 /* AppLockScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockScreen.swift; sourceTree = "<group>"; };
 		5D6A114BF9CB801CD79DDD07 /* AllBrowserApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllBrowserApp.swift; sourceTree = "<group>"; };
 		61D0A76D62B511A4DF4CFB93 /* PhotoDeleteBasketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoDeleteBasketView.swift; sourceTree = "<group>"; };
-		6231189A3B283B26C61AA015 /* YouTubePlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubePlayerScreen.swift; sourceTree = "<group>"; };
+		6231189A3B283B26C61AA015 /* LocalPlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPlayerScreen.swift; sourceTree = "<group>"; };
 		788CF07E1FB43642F7AB84A2 /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
 		8883085C127CD4037571759D /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		AAA377E31317F183CBE3AB0C /* ContentBlocker.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ContentBlocker.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -90,7 +90,7 @@
 				1FE7629B9B26B9182A486EE5 /* DownloadsKit in Frameworks */,
 				FA3EF36437AF82A5D81F9AE3 /* PhotosKit in Frameworks */,
 				7AB6F5536D41F91745C7DE8E /* CachePhotosKit in Frameworks */,
-				4D8311CEBA388A6F2B951302 /* YouTubeKit in Frameworks */,
+				4D8311CEBA388A6F2B951302 /* StreamKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,7 +119,7 @@
 				333A7599927E55EE9CF115F4 /* PhotoSwipeSessionView.swift */,
 				8883085C127CD4037571759D /* RootView.swift */,
 				CE72F89304169B9D90E04A6A /* SettingsScreen.swift */,
-				6231189A3B283B26C61AA015 /* YouTubePlayerScreen.swift */,
+				6231189A3B283B26C61AA015 /* LocalPlayerScreen.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -211,7 +211,7 @@
 				E0A27ED67EEE53FACC2379A8 /* DownloadsKit */,
 				0B2101D6152E09DC6D8769E3 /* PhotosKit */,
 				B8C88964B257AD58382574C6 /* CachePhotosKit */,
-				65AB10565258995FE04C25A9 /* YouTubeKit */,
+				65AB10565258995FE04C25A9 /* StreamKit */,
 			);
 			productName = AllBrowser;
 			productReference = B27A3EC0B35616D87BE98A6A /* AllBrowser.app */;
@@ -274,7 +274,7 @@
 				087F35F58E17B5E648C3DCC8 /* PhotosScreen.swift in Sources */,
 				92E4AF3DACDAB1A94350DB3F /* RootView.swift in Sources */,
 				200E1F9B724BACDC8F067EF6 /* SettingsScreen.swift in Sources */,
-				4A375969E1A62B6693EB8E0E /* YouTubePlayerScreen.swift in Sources */,
+				4A375969E1A62B6693EB8E0E /* LocalPlayerScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -558,9 +558,9 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = AppLockKit;
 		};
-		65AB10565258995FE04C25A9 /* YouTubeKit */ = {
+		65AB10565258995FE04C25A9 /* StreamKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = YouTubeKit;
+			productName = StreamKit;
 		};
 		7091B5384ACF1F3913E56770 /* AdBlockKit */ = {
 			isa = XCSwiftPackageProductDependency;

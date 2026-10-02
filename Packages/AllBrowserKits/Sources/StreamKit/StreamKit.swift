@@ -5,7 +5,7 @@ import StorageKit
 import WebKit
 import SwiftUI
 
-public enum YouTubeURLDetector {
+public enum StreamURLDetector {
     public static func videoID(from rawURL: URL) -> String? {
         videoID(from: rawURL.absoluteString)
     }
@@ -60,7 +60,7 @@ private extension URL {
     }
 }
 
-public struct YouTubeVideoInfo: Equatable, Identifiable {
+public struct StreamVideoInfo: Equatable, Identifiable {
     public var id: String { videoID }
     public var videoID: String
     public var title: String
@@ -86,7 +86,7 @@ public struct YouTubeVideoInfo: Equatable, Identifiable {
     }
 }
 
-public struct YouTubeTempCacheEntry: Codable, Equatable, Identifiable {
+public struct StreamTempCacheEntry: Codable, Equatable, Identifiable {
     public var id: String
     public var videoID: String
     public var quality: String
@@ -105,12 +105,12 @@ public protocol TemporaryCaching: AnyObject {
     func enforceCapacity(maxBytes: Int64)
     func purgeAll()
     var usageBytes: Int64 { get }
-    var entries: [YouTubeTempCacheEntry] { get }
+    var entries: [StreamTempCacheEntry] { get }
 }
 
 public final class TemporaryCacheStore: TemporaryCaching {
-    private let indexStore = JSONStore<[YouTubeTempCacheEntry]>(filename: "youtube_temp_index.json")
-    private var index: [YouTubeTempCacheEntry]
+    private let indexStore = JSONStore<[StreamTempCacheEntry]>(filename: "youtube_temp_index.json")
+    private var index: [StreamTempCacheEntry]
     private let fileManager = FileManager.default
 
     public init() {
@@ -118,7 +118,7 @@ public final class TemporaryCacheStore: TemporaryCaching {
         purgeExpired()
     }
 
-    public var entries: [YouTubeTempCacheEntry] { index }
+    public var entries: [StreamTempCacheEntry] { index }
 
     public var usageBytes: Int64 {
         index.reduce(0) { $0 + $1.byteCount }
@@ -145,7 +145,7 @@ public final class TemporaryCacheStore: TemporaryCaching {
         try data.write(to: url, options: [.atomic])
         index.removeAll { $0.videoID == videoID && $0.quality == quality }
         let now = Date()
-        let entry = YouTubeTempCacheEntry(
+        let entry = StreamTempCacheEntry(
             id: UUID().uuidString,
             videoID: videoID,
             quality: quality,
@@ -212,14 +212,14 @@ public final class TemporaryCacheStore: TemporaryCaching {
 }
 
 public protocol StreamResolving {
-    func resolve(videoID: String) async throws -> YouTubeVideoInfo
+    func resolve(videoID: String) async throws -> StreamVideoInfo
 }
 
 /// Resolves metadata via oEmbed. Used as fallback when JS stream extraction fails.
-public struct YouTubeOEmbedResolver: StreamResolving {
+public struct StreamOEmbedResolver: StreamResolving {
     public init() {}
 
-    public func resolve(videoID: String) async throws -> YouTubeVideoInfo {
+    public func resolve(videoID: String) async throws -> StreamVideoInfo {
         let watchURL = "https://www.youtube.com/watch?v=\(videoID)"
         guard let oembed = URL(string: "https://www.youtube.com/oembed?url=\(watchURL)&format=json") else {
             throw URLError(.badURL)
@@ -231,7 +231,7 @@ public struct YouTubeOEmbedResolver: StreamResolving {
             let thumbnail_url: String?
         }
         let decoded = try JSONDecoder().decode(OEmbed.self, from: data)
-        return YouTubeVideoInfo(
+        return StreamVideoInfo(
             videoID: videoID,
             title: decoded.title,
             author: decoded.author_name,
@@ -243,8 +243,8 @@ public struct YouTubeOEmbedResolver: StreamResolving {
 }
 
 @MainActor
-public final class YouTubePlaybackService: ObservableObject {
-    @Published public private(set) var lastInfo: YouTubeVideoInfo?
+public final class StreamPlaybackService: ObservableObject {
+    @Published public private(set) var lastInfo: StreamVideoInfo?
     @Published public private(set) var isResolving = false
     @Published public private(set) var errorMessage: String?
 
@@ -254,7 +254,7 @@ public final class YouTubePlaybackService: ObservableObject {
 
     public init(
         cache: TemporaryCaching = TemporaryCacheStore(),
-        resolver: StreamResolving = YouTubeChainedResolver(),
+        resolver: StreamResolving = ChainedStreamResolver(),
         settings: @escaping () -> AppSettings
     ) {
         self.cache = cache
@@ -266,8 +266,8 @@ public final class YouTubePlaybackService: ObservableObject {
         settings().youtubeEnhancedPlayback
     }
 
-    public func prepare(videoID: String) async -> YouTubeVideoInfo? {
-        YouTubeLog.info("prepare start videoID=\(videoID) enhanced=\(isEnhancedEnabled)")
+    public func prepare(videoID: String) async -> StreamVideoInfo? {
+        StreamLog.info("prepare start videoID=\(videoID) enhanced=\(isEnhancedEnabled)")
         isResolving = true
         errorMessage = nil
         defer { isResolving = false }
@@ -277,7 +277,7 @@ public final class YouTubePlaybackService: ObservableObject {
             cache.enforceCapacity(maxBytes: settings().youtubeCacheMaxBytes)
 
             if let cached = cache.cachedFileURL(videoID: videoID, quality: "auto") {
-                YouTubeLog.info("prepare using cache \(cached.lastPathComponent)")
+                StreamLog.info("prepare using cache \(cached.lastPathComponent)")
                 info.streamURL = cached
                 info.usesEmbedFallback = false
             }
@@ -296,23 +296,23 @@ public final class YouTubePlaybackService: ObservableObject {
                 info.usesEmbedFallback = true
             }
 
-            YouTubeLog.info(
-                "prepare done title=\(info.title) stream=\(YouTubeLog.truncate(info.streamURL?.absoluteString)) embed=\(info.usesEmbedFallback)"
+            StreamLog.info(
+                "prepare done title=\(info.title) stream=\(StreamLog.truncate(info.streamURL?.absoluteString)) embed=\(info.usesEmbedFallback)"
             )
             lastInfo = info
             return info
         } catch {
-            YouTubeLog.error("prepare failed", error: error)
+            StreamLog.error("prepare failed", error: error)
             errorMessage = error.localizedDescription
             return nil
         }
     }
 
-    public func play(info: YouTubeVideoInfo, using playback: PlaybackController) {
+    public func play(info: StreamVideoInfo, using playback: PlaybackController) {
         lastInfo = info
         errorMessage = nil
         if let streamURL = info.streamURL {
-            YouTubeLog.info("play \(info.videoID) \(YouTubeLog.truncate(streamURL.absoluteString))")
+            StreamLog.info("play \(info.videoID) \(StreamLog.truncate(streamURL.absoluteString))")
             let item = MediaItem(
                 title: info.title,
                 artist: info.author,
@@ -321,7 +321,7 @@ public final class YouTubePlaybackService: ObservableObject {
             )
             playback.play(item)
         } else {
-            YouTubeLog.error("play skipped — no streamURL for \(info.videoID)")
+            StreamLog.error("play skipped — no streamURL for \(info.videoID)")
         }
     }
 
@@ -347,7 +347,7 @@ public final class YouTubePlaybackService: ObservableObject {
     }
 }
 
-public struct YouTubeEmbedView: UIViewRepresentable {
+public struct StreamEmbedView: UIViewRepresentable {
     public let videoID: String
 
     public init(videoID: String) {

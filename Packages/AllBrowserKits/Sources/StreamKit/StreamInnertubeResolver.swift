@@ -1,8 +1,8 @@
 import Foundation
 
 /// YTLite-style ANDROID Innertube player fallback.
-/// Uses `signatureTimestamp` so YouTube returns plain `url` formats (no signatureCipher / nsig).
-public struct YouTubeAndroidPlayerResolver: StreamResolving {
+/// Uses `signatureTimestamp` so the player returns plain `url` formats (no signatureCipher / nsig).
+public struct AndroidPlayerResolver: StreamResolving {
     /// Match YTLite `ResolverRemoteConfig.defaults`.
     public static let defaultClientVersion = "20.10.38"
     public static let defaultSignatureTimestamp = 20_646
@@ -11,36 +11,36 @@ public struct YouTubeAndroidPlayerResolver: StreamResolving {
     private let fallbackSTS: Int
 
     public init(
-        clientVersion: String = YouTubeAndroidPlayerResolver.defaultClientVersion,
-        signatureTimestamp: Int = YouTubeAndroidPlayerResolver.defaultSignatureTimestamp
+        clientVersion: String = AndroidPlayerResolver.defaultClientVersion,
+        signatureTimestamp: Int = AndroidPlayerResolver.defaultSignatureTimestamp
     ) {
         self.clientVersion = clientVersion
         self.fallbackSTS = signatureTimestamp
     }
 
-    public func resolve(videoID: String) async throws -> YouTubeVideoInfo {
-        YouTubeLog.info("AndroidPlayerResolver start \(videoID) ver=\(clientVersion)")
+    public func resolve(videoID: String) async throws -> StreamVideoInfo {
+        StreamLog.info("AndroidPlayerResolver start \(videoID) ver=\(clientVersion)")
         var sts = fallbackSTS
         if let scraped = await Self.scrapeSignatureTimestamp(videoID: videoID) {
             sts = scraped
-            YouTubeLog.info("AndroidPlayerResolver scraped STS=\(sts)")
+            StreamLog.info("AndroidPlayerResolver scraped STS=\(sts)")
         } else {
-            YouTubeLog.info("AndroidPlayerResolver using default STS=\(sts)")
+            StreamLog.info("AndroidPlayerResolver using default STS=\(sts)")
         }
 
         if let info = try await fetchAndroidPlayer(videoID: videoID, signatureTimestamp: sts) {
-            YouTubeLog.info(
-                "AndroidPlayerResolver OK title=\(info.title) url=\(YouTubeLog.truncate(info.streamURL?.absoluteString))"
+            StreamLog.info(
+                "AndroidPlayerResolver OK title=\(info.title) url=\(StreamLog.truncate(info.streamURL?.absoluteString))"
             )
             return info
         }
-        throw YouTubeJSExtractorError.message("ANDROID player returned no playable URL")
+        throw StreamJSExtractorError.message("ANDROID player returned no playable URL")
     }
 
     private func fetchAndroidPlayer(
         videoID: String,
         signatureTimestamp: Int
-    ) async throws -> YouTubeVideoInfo? {
+    ) async throws -> StreamVideoInfo? {
         let androidUA =
             "com.google.android.youtube/\(clientVersion) (Linux; U; Android 11) gzip"
 
@@ -99,7 +99,7 @@ public struct YouTubeAndroidPlayerResolver: StreamResolving {
         let text = String(data: data, encoding: .utf8) ?? ""
         let bot = text.localizedCaseInsensitiveContains("Sign in to confirm")
             || text.localizedCaseInsensitiveContains("not a bot")
-        YouTubeLog.info(
+        StreamLog.info(
             "AndroidPlayerResolver HTTP \(status) bytes=\(data.count) bot=\(bot) sts=\(signatureTimestamp)"
         )
         guard (200..<300).contains(status) else { return nil }
@@ -112,14 +112,14 @@ public struct YouTubeAndroidPlayerResolver: StreamResolving {
         if let statusText = (playability?["status"] as? String)?.uppercased(),
            statusText != "OK", !statusText.isEmpty {
             let reason = (playability?["reason"] as? String) ?? statusText
-            YouTubeLog.error("AndroidPlayerResolver playability=\(statusText) reason=\(reason)")
-            throw YouTubeJSExtractorError.message(reason)
+            StreamLog.error("AndroidPlayerResolver playability=\(statusText) reason=\(reason)")
+            throw StreamJSExtractorError.message(reason)
         }
 
-        return try YouTubePlayerResponseMapper.videoInfo(videoID: videoID, player: root)
+        return try StreamPlayerResponseMapper.videoInfo(videoID: videoID, player: root)
     }
 
-    /// Pull STS from the watch HTML when possible (keeps ANDROID player in sync with YouTube).
+    /// Pull STS from the watch HTML when possible (keeps ANDROID player in sync with the site).
     private static func scrapeSignatureTimestamp(videoID: String) async -> Int? {
         let urls = [
             "https://www.youtube.com/watch?v=\(videoID)",
@@ -170,10 +170,10 @@ public struct YouTubeAndroidPlayerResolver: StreamResolving {
 }
 
 /// Secondary Innertube clients (IOS / ANDROID_VR) used after ANDROID+STS fails.
-public struct YouTubeInnertubeResolver: StreamResolving {
+public struct StreamInnertubeResolver: StreamResolving {
     public init() {}
 
-    public func resolve(videoID: String) async throws -> YouTubeVideoInfo {
+    public func resolve(videoID: String) async throws -> StreamVideoInfo {
         let clients: [(name: String, version: String, clientNameHeader: String, host: String, ua: String, sts: Int?)] = [
             (
                 "IOS",
@@ -181,7 +181,7 @@ public struct YouTubeInnertubeResolver: StreamResolving {
                 "5",
                 "www.youtube.com",
                 "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)",
-                YouTubeAndroidPlayerResolver.defaultSignatureTimestamp
+                AndroidPlayerResolver.defaultSignatureTimestamp
             ),
             (
                 "ANDROID_VR",
@@ -189,21 +189,21 @@ public struct YouTubeInnertubeResolver: StreamResolving {
                 "28",
                 "www.youtube.com",
                 "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
-                YouTubeAndroidPlayerResolver.defaultSignatureTimestamp
+                AndroidPlayerResolver.defaultSignatureTimestamp
             ),
         ]
 
-        var lastError: Error = YouTubeJSExtractorError.extractFailed
+        var lastError: Error = StreamJSExtractorError.extractFailed
         for client in clients {
             do {
-                YouTubeLog.info("Innertube try client=\(client.name)")
+                StreamLog.info("Innertube try client=\(client.name)")
                 if let info = try await fetchPlayer(videoID: videoID, client: client) {
-                    YouTubeLog.info("Innertube OK client=\(client.name) url=\(YouTubeLog.truncate(info.streamURL?.absoluteString))")
+                    StreamLog.info("Innertube OK client=\(client.name) url=\(StreamLog.truncate(info.streamURL?.absoluteString))")
                     return info
                 }
-                YouTubeLog.info("Innertube empty client=\(client.name)")
+                StreamLog.info("Innertube empty client=\(client.name)")
             } catch {
-                YouTubeLog.error("Innertube fail client=\(client.name)", error: error)
+                StreamLog.error("Innertube fail client=\(client.name)", error: error)
                 lastError = error
             }
         }
@@ -213,7 +213,7 @@ public struct YouTubeInnertubeResolver: StreamResolving {
     private func fetchPlayer(
         videoID: String,
         client: (name: String, version: String, clientNameHeader: String, host: String, ua: String, sts: Int?)
-    ) async throws -> YouTubeVideoInfo? {
+    ) async throws -> StreamVideoInfo? {
         let url = URL(string: "https://\(client.host)/youtubei/v1/player?prettyPrint=false")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -267,14 +267,14 @@ public struct YouTubeInnertubeResolver: StreamResolving {
         if let statusText = playability?["status"] as? String,
            statusText != "OK" {
             let reason = (playability?["reason"] as? String) ?? statusText
-            throw YouTubeJSExtractorError.message(reason)
+            throw StreamJSExtractorError.message(reason)
         }
 
-        return try YouTubePlayerResponseMapper.videoInfo(videoID: videoID, player: root)
+        return try StreamPlayerResponseMapper.videoInfo(videoID: videoID, player: root)
     }
 }
 
-enum YouTubeFormatPicker {
+enum StreamFormatPicker {
     static func bestPlayableURL(from formats: [[String: Any]]) -> URL? {
         struct Candidate {
             let url: URL

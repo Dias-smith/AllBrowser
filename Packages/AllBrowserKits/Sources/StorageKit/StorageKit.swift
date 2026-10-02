@@ -23,7 +23,7 @@ public enum AppPaths {
     }
 
     public static var youtubeTemp: URL {
-        let url = caches.appendingPathComponent("YouTubeTemp", isDirectory: true)
+        let url = caches.appendingPathComponent("StreamTemp", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -82,7 +82,7 @@ public struct AppSettings: Codable, Equatable {
     public var lockOnBackground: Bool
     public var lockGraceSeconds: Int
     public var youtubeEnhancedPlayback: Bool
-    /// When true, opening a YouTube watch/shorts URL launches the local player.
+    /// When true, opening a watch/shorts URL launches the local player.
     public var youtubeOpenInLocalPlayer: Bool
     public var youtubeCacheTTLHours: Int
     public var youtubeCacheMaxBytes: Int64

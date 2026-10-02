@@ -2,13 +2,13 @@ import SwiftUI
 import DesignSystem
 import MediaKit
 import PlaylistKit
-import YouTubeKit
+import StreamKit
 import UniformTypeIdentifiers
 
 struct MediaLibraryScreen: View {
     @EnvironmentObject private var playlists: PlaylistStore
     @EnvironmentObject private var playback: PlaybackController
-    @EnvironmentObject private var youtube: YouTubePlaybackService
+    @EnvironmentObject private var youtube: StreamPlaybackService
     @State private var newPlaylistName = ""
     @State private var showCreatePlaylist = false
 
@@ -69,8 +69,8 @@ struct PlaylistDetailScreen: View {
     let playlist: Playlist
     @EnvironmentObject private var playlists: PlaylistStore
     @EnvironmentObject private var playback: PlaybackController
-    @EnvironmentObject private var youtube: YouTubePlaybackService
-    @State private var showYouTube: String?
+    @EnvironmentObject private var youtube: StreamPlaybackService
+    @State private var showLocalPlayer: String?
 
     var body: some View {
         List {
@@ -78,7 +78,7 @@ struct PlaylistDetailScreen: View {
             if entries.isEmpty {
                 EmptyStateView(
                     title: "No tracks yet",
-                    subtitle: "Add from YouTube enhanced playback or local items",
+                    subtitle: "Add from enhanced playback or local items",
                     systemImage: "music.note"
                 )
                 .listRowBackground(Color.clear)
@@ -89,7 +89,7 @@ struct PlaylistDetailScreen: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.title).foregroundStyle(ABColor.textPrimary)
-                            Text(entry.artist.isEmpty ? (entry.youtubeVideoID != nil ? "YouTube" : "Local") : entry.artist)
+                            Text(entry.artist.isEmpty ? (entry.youtubeVideoID != nil ? "Stream" : "Local") : entry.artist)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -105,16 +105,16 @@ struct PlaylistDetailScreen: View {
         .navigationTitle(playlist.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: Binding(
-            get: { showYouTube.map { IdentifiedString(id: $0) } },
-            set: { showYouTube = $0?.id }
+            get: { showLocalPlayer.map { IdentifiedString(id: $0) } },
+            set: { showLocalPlayer = $0?.id }
         )) { item in
-            YouTubePlayerScreen(videoID: item.id)
+            LocalPlayerScreen(videoID: item.id)
         }
     }
 
     private func play(entry: PlaylistEntry) async {
         if let videoID = entry.youtubeVideoID {
-            showYouTube = videoID
+            showLocalPlayer = videoID
             return
         }
         if let item = entry.asMediaItem() {

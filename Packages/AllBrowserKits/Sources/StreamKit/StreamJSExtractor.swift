@@ -5,8 +5,8 @@ import WebKit
 /// Hosts `bridge-ios.html` + `resolution.js` in a hidden WKWebView and implements
 /// the `AndroidBridge` / Flutter message APIs the extractor expects.
 @MainActor
-public final class YouTubeJSExtractor: NSObject {
-    public static let shared = YouTubeJSExtractor()
+public final class StreamJSExtractor: NSObject {
+    public static let shared = StreamJSExtractor()
 
     private var webView: WKWebView?
     private var isBooted = false
@@ -32,9 +32,9 @@ public final class YouTubeJSExtractor: NSObject {
     }
 
     public func extract(watchURL: String) async throws -> [String: Any] {
-        YouTubeLog.info("JSExtractor extract begin \(watchURL)")
+        StreamLog.info("JSExtractor extract begin \(watchURL)")
         try await ensureBooted()
-        YouTubeLog.info("JSExtractor booted visitorData=\(YouTubeLog.truncate(visitorData, limit: 40))")
+        StreamLog.info("JSExtractor booted visitorData=\(StreamLog.truncate(visitorData, limit: 40))")
         let uid = UUID().uuidString
         let payload: [String: Any] = [
             "uid": uid,
@@ -44,12 +44,12 @@ public final class YouTubeJSExtractor: NSObject {
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let json = String(data: data, encoding: .utf8) else {
-            throw YouTubeJSExtractorError.invalidPayload
+            throw StreamJSExtractorError.invalidPayload
         }
 
         return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<[String: Any], Error>) in
             pendingExtract[uid] = cont
-            YouTubeLog.info("JSExtractor postMessage uid=\(uid)")
+            StreamLog.info("JSExtractor postMessage uid=\(uid)")
 
             let b64 = Data(json.utf8).base64EncodedString()
             // Always return a plain string — postMessageToJSBridge may return a Promise /
@@ -72,10 +72,10 @@ public final class YouTubeJSExtractor: NSObject {
             webView?.evaluateJavaScript(js) { [weak self] result, error in
                 Task { @MainActor in
                     if let text = result as? String, text.hasPrefix("ERR:") {
-                        YouTubeLog.error("JSExtractor bridge ERR \(text)")
+                        StreamLog.error("JSExtractor bridge ERR \(text)")
                         self?.failExtract(
                             uid: uid,
-                            error: YouTubeJSExtractorError.message(String(text.dropFirst(4)))
+                            error: StreamJSExtractorError.message(String(text.dropFirst(4)))
                         )
                         return
                     }
@@ -85,21 +85,21 @@ public final class YouTubeJSExtractor: NSObject {
                         let msg = ns.localizedDescription.lowercased()
                         if ns.domain == WKError.errorDomain,
                            msg.contains("unsupported type") || ns.code == 5 {
-                            YouTubeLog.info("JSExtractor evaluateJS non-fatal: \(ns.localizedDescription)")
+                            StreamLog.info("JSExtractor evaluateJS non-fatal: \(ns.localizedDescription)")
                             return
                         }
-                        YouTubeLog.error("JSExtractor evaluateJS failed", error: error)
+                        StreamLog.error("JSExtractor evaluateJS failed", error: error)
                         self?.failExtract(uid: uid, error: error)
                         return
                     }
-                    YouTubeLog.info("JSExtractor postMessage accepted result=\(String(describing: result))")
+                    StreamLog.info("JSExtractor postMessage accepted result=\(String(describing: result))")
                 }
             }
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 45_000_000_000)
                 if self.pendingExtract[uid] != nil {
-                    YouTubeLog.error("JSExtractor timeout uid=\(uid)")
-                    self.failExtract(uid: uid, error: YouTubeJSExtractorError.timeout)
+                    StreamLog.error("JSExtractor timeout uid=\(uid)")
+                    self.failExtract(uid: uid, error: StreamJSExtractorError.timeout)
                 }
             }
         }
@@ -116,7 +116,7 @@ public final class YouTubeJSExtractor: NSObject {
     }
 
     private func bootWebView() {
-        YouTubeLog.info("JSExtractor bootWebView start")
+        StreamLog.info("JSExtractor bootWebView start")
         let controller = WKUserContentController()
         controller.add(self, name: "AndroidBridge")
         controller.add(self, name: "flutterRequest")
@@ -159,19 +159,19 @@ public final class YouTubeJSExtractor: NSObject {
         }
 
         guard let htmlURL = Bundle.module.url(forResource: "bridge-ios", withExtension: "html") else {
-            YouTubeLog.error("JSExtractor missing bridge-ios.html in bundle")
-            finishBoot(error: YouTubeJSExtractorError.missingScript)
+            StreamLog.error("JSExtractor missing bridge-ios.html in bundle")
+            finishBoot(error: StreamJSExtractorError.missingScript)
             return
         }
         let accessURL = htmlURL.deletingLastPathComponent()
-        YouTubeLog.info("JSExtractor loadFileURL \(htmlURL.lastPathComponent) access=\(accessURL.path)")
+        StreamLog.info("JSExtractor loadFileURL \(htmlURL.lastPathComponent) access=\(accessURL.path)")
         view.loadFileURL(htmlURL, allowingReadAccessTo: accessURL)
 
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 20_000_000_000)
             if !self.isBooted, !self.bootContinuations.isEmpty {
-                YouTubeLog.error("JSExtractor boot timeout (no onExtractorReady)")
-                self.finishBoot(error: YouTubeJSExtractorError.scriptNotReady)
+                StreamLog.error("JSExtractor boot timeout (no onExtractorReady)")
+                self.finishBoot(error: StreamJSExtractorError.scriptNotReady)
             }
         }
     }
@@ -180,10 +180,10 @@ public final class YouTubeJSExtractor: NSObject {
         let conts = bootContinuations
         bootContinuations.removeAll()
         if let error {
-            YouTubeLog.error("JSExtractor boot failed", error: error)
+            StreamLog.error("JSExtractor boot failed", error: error)
             conts.forEach { $0.resume(throwing: error) }
         } else {
-            YouTubeLog.info("JSExtractor boot ready")
+            StreamLog.info("JSExtractor boot ready")
             isBooted = true
             conts.forEach { $0.resume() }
             syncVisitorDataToJS()
@@ -212,14 +212,14 @@ public final class YouTubeJSExtractor: NSObject {
         let method = (obj["method"] as? String) ?? ""
         switch method {
         case "onExtractorReady":
-            YouTubeLog.info("AndroidBridge onExtractorReady")
+            StreamLog.info("AndroidBridge onExtractorReady")
             finishBoot(error: nil)
 
         case "onExtractorError":
             let message = (obj["message"] as? String)?.nilIfEmpty
-                ?? YouTubeJSExtractorError.scriptNotReady.localizedDescription
-            YouTubeLog.error("AndroidBridge onExtractorError \(message)")
-            finishBoot(error: YouTubeJSExtractorError.message(message))
+                ?? StreamJSExtractorError.scriptNotReady.localizedDescription
+            StreamLog.error("AndroidBridge onExtractorError \(message)")
+            finishBoot(error: StreamJSExtractorError.message(message))
 
         case "requestWithCallback":
             let callbackId = (obj["callbackId"] as? String) ?? ""
@@ -228,7 +228,7 @@ public final class YouTubeJSExtractor: NSObject {
             let headersJSON = (obj["headers"] as? String) ?? "{}"
             let bodyString = (obj["body"] as? String) ?? ""
             let optionsJSON = (obj["options"] as? String) ?? "{}"
-            YouTubeLog.info("AndroidBridge request \(httpMethod) \(YouTubeLog.truncate(urlString)) id=\(callbackId)")
+            StreamLog.info("AndroidBridge request \(httpMethod) \(StreamLog.truncate(urlString)) id=\(callbackId)")
             Task { @MainActor in
                 await self.performBridgeRequest(
                     callbackId: callbackId,
@@ -241,22 +241,22 @@ public final class YouTubeJSExtractor: NSObject {
             }
 
         case "sendMessageToNative":
-            let preview = YouTubeLog.truncate(String(describing: obj["message"]), limit: 220)
-            YouTubeLog.info("AndroidBridge sendMessageToNative \(preview)")
+            let preview = StreamLog.truncate(String(describing: obj["message"]), limit: 220)
+            StreamLog.info("AndroidBridge sendMessageToNative \(preview)")
             handleExtractCallback(obj["message"] ?? "")
 
         case "queryUserInfo":
             let callbackId = (obj["callbackId"] as? String) ?? ""
-            YouTubeLog.info("AndroidBridge queryUserInfo id=\(callbackId)")
+            StreamLog.info("AndroidBridge queryUserInfo id=\(callbackId)")
             invokeJSCallback(callbackId: callbackId, success: true, result: "{}", errCode: 0, errMsg: "")
 
         case "queryFIRRemoteConfigThen":
             let callbackId = (obj["callbackId"] as? String) ?? ""
-            YouTubeLog.info("AndroidBridge queryFIRRemoteConfig key=\(obj["key"] ?? "") id=\(callbackId)")
+            StreamLog.info("AndroidBridge queryFIRRemoteConfig key=\(obj["key"] ?? "") id=\(callbackId)")
             invokeJSCallback(callbackId: callbackId, success: true, result: "", errCode: 0, errMsg: "")
 
         default:
-            YouTubeLog.info("AndroidBridge unknown method=\(method)")
+            StreamLog.info("AndroidBridge unknown method=\(method)")
         }
     }
 
@@ -303,7 +303,7 @@ public final class YouTubeJSExtractor: NSObject {
 
             let botHit = text.localizedCaseInsensitiveContains("Sign in to confirm")
                 || text.localizedCaseInsensitiveContains("not a bot")
-            YouTubeLog.info(
+            StreamLog.info(
                 "AndroidBridge response status=\(status) bytes=\(data.count) success=\(success) bot=\(botHit) withoutCookie=\(withoutCookie) id=\(callbackId)"
             )
 
@@ -319,7 +319,7 @@ public final class YouTubeJSExtractor: NSObject {
                 errMsg: success ? "" : "HTTP \(status)"
             )
         } catch {
-            YouTubeLog.error("AndroidBridge request failed id=\(callbackId)", error: error)
+            StreamLog.error("AndroidBridge request failed id=\(callbackId)", error: error)
             invokeJSCallback(
                 callbackId: callbackId,
                 success: false,
@@ -377,7 +377,7 @@ public final class YouTubeJSExtractor: NSObject {
         let value = String(text[r])
         guard !value.isEmpty, value != visitorData else { return }
         visitorData = value
-        YouTubeLog.info("visitorData updated \(YouTubeLog.truncate(value, limit: 48))")
+        StreamLog.info("visitorData updated \(StreamLog.truncate(value, limit: 48))")
         syncVisitorDataToJS()
     }
 
@@ -498,25 +498,25 @@ public final class YouTubeJSExtractor: NSObject {
                 // resolution.js sometimes returns success=true with music=null + login error.
                 if payload["music"] == nil || payload["music"] is NSNull {
                     let msg = errorMsg ?? "login required / empty music payload"
-                    YouTubeLog.error("Extract callback empty music uid=\(uid) msg=\(msg)")
-                    cont.resume(throwing: YouTubeJSExtractorError.message(msg))
+                    StreamLog.error("Extract callback empty music uid=\(uid) msg=\(msg)")
+                    cont.resume(throwing: StreamJSExtractorError.message(msg))
                     return
                 }
-                YouTubeLog.info("Extract callback OK uid=\(uid) keys=\(Array(payload.keys).sorted())")
+                StreamLog.info("Extract callback OK uid=\(uid) keys=\(Array(payload.keys).sorted())")
                 cont.resume(returning: payload)
             } else {
-                let msg = errorMsg ?? YouTubeJSExtractorError.extractFailed.localizedDescription
-                YouTubeLog.error("Extract callback fail uid=\(uid) msg=\(msg) wrapper=\(YouTubeLog.truncate(String(describing: wrapper), limit: 240))")
-                cont.resume(throwing: YouTubeJSExtractorError.message(msg))
+                let msg = errorMsg ?? StreamJSExtractorError.extractFailed.localizedDescription
+                StreamLog.error("Extract callback fail uid=\(uid) msg=\(msg) wrapper=\(StreamLog.truncate(String(describing: wrapper), limit: 240))")
+                cont.resume(throwing: StreamJSExtractorError.message(msg))
             }
         } else {
-            YouTubeLog.error("Extract callback missing data uid=\(uid)")
-            cont.resume(throwing: YouTubeJSExtractorError.extractFailed)
+            StreamLog.error("Extract callback missing data uid=\(uid)")
+            cont.resume(throwing: StreamJSExtractorError.extractFailed)
         }
     }
 }
 
-extension YouTubeJSExtractor: WKScriptMessageHandler {
+extension StreamJSExtractor: WKScriptMessageHandler {
     public nonisolated func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
@@ -538,7 +538,7 @@ extension YouTubeJSExtractor: WKScriptMessageHandler {
     }
 }
 
-extension YouTubeJSExtractor: WKNavigationDelegate {
+extension StreamJSExtractor: WKNavigationDelegate {
     public nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         Task { @MainActor in
             self.finishBoot(error: error)
@@ -556,7 +556,7 @@ extension YouTubeJSExtractor: WKNavigationDelegate {
     }
 }
 
-public enum YouTubeJSExtractorError: LocalizedError {
+public enum StreamJSExtractorError: LocalizedError {
     case missingScript
     case scriptNotReady
     case invalidPayload
@@ -568,10 +568,10 @@ public enum YouTubeJSExtractorError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingScript: return "bridge-ios.html / resolution.js is missing from the app bundle."
-        case .scriptNotReady: return "YouTube extractor script failed to initialize."
+        case .scriptNotReady: return "Stream extractor script failed to initialize."
         case .invalidPayload: return "Invalid extractor request payload."
-        case .timeout: return "YouTube stream extraction timed out."
-        case .extractFailed: return "YouTube stream extraction failed."
+        case .timeout: return "Stream extraction timed out."
+        case .extractFailed: return "Stream extraction failed."
         case .noPlayableURL: return "No progressive playable URL was returned."
         case .message(let text): return text
         }

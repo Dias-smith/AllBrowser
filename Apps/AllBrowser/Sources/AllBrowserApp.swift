@@ -8,7 +8,7 @@ import PlaylistKit
 import DownloadsKit
 import PhotosKit
 import CachePhotosKit
-import YouTubeKit
+import StreamKit
 
 @MainActor
 final class AppEnvironment: ObservableObject {
@@ -24,7 +24,7 @@ final class AppEnvironment: ObservableObject {
     let photos: PhotosService
     let organize: PhotoOrganizeSession
     let cachePhotos: CachePhotosService
-    let youtube: YouTubePlaybackService
+    let youtube: StreamPlaybackService
 
     init() {
         let settings = SettingsStore()
@@ -45,7 +45,7 @@ final class AppEnvironment: ObservableObject {
         let photos = PhotosService(reviewStore: PhotoReviewStore())
         let organize = PhotoOrganizeSession(photos: photos)
         let cachePhotos = CachePhotosService()
-        let youtube = YouTubePlaybackService(settings: { settings.settings })
+        let youtube = StreamPlaybackService(settings: { settings.settings })
 
         self.settings = settings
         self.bookmarks = bookmarks
