@@ -49,6 +49,25 @@ public final class BrowserController: ObservableObject {
     private var webViews: [UUID: WKWebView] = [:]
     private var ruleList: WKContentRuleList?
 
+    /// Returns a YouTube video id when the URL should be intercepted for local playback.
+    public var youtubeVideoIDFromURL: ((URL) -> String?)?
+    /// Set when a YouTube video navigation is cancelled for local playback.
+    @Published public var pendingLocalYouTube: PendingLocalYouTube?
+    /// Video IDs allowed to load in the webview once (fallback after local play fails).
+    private var passthroughYouTubeVideoIDs: Set<String> = []
+
+    public struct PendingLocalYouTube: Equatable {
+        public let videoID: String
+        public let url: URL
+        public let token: UUID
+
+        public init(videoID: String, url: URL) {
+            self.videoID = videoID
+            self.url = url
+            self.token = UUID()
+        }
+    }
+
     public init(
         bookmarks: BookmarkStore,
         history: HistoryStore,
@@ -64,6 +83,15 @@ public final class BrowserController: ObservableObject {
         let first = BrowserTab()
         self.tabs = [first]
         self.selectedTabID = first.id
+    }
+
+    public func allowNextYouTubeNavigation(videoID: String) {
+        passthroughYouTubeVideoIDs.insert(videoID)
+    }
+
+    @discardableResult
+    public func consumeYouTubePassthrough(videoID: String) -> Bool {
+        passthroughYouTubeVideoIDs.remove(videoID) != nil
     }
 
     public var selectedTab: BrowserTab? {
@@ -201,6 +229,44 @@ public final class BrowserController: ObservableObject {
         guard let tab = selectedTab, !tab.urlString.isEmpty else { return }
         bookmarks.add(title: tab.title, urlString: tab.urlString)
     }
+
+    /// Prefer the live WKWebView URL, then tab state, then address bar.
+    public func currentPageURLString() -> String {
+        if let live = webViews[selectedTabID]?.url?.absoluteString, !live.isEmpty {
+            return live
+        }
+        if let tabURL = selectedTab?.urlString, !tabURL.isEmpty {
+            return tabURL
+        }
+        return addressText
+    }
+
+    public func evaluateJavaScript(_ script: String) async -> Any? {
+        let view = webView(for: selectedTabID)
+        return await withCheckedContinuation { continuation in
+            view.evaluateJavaScript(script) { result, _ in
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    /// Copies YouTube cookies from the browser's WKWebView data store into
+    /// `HTTPCookieStorage.shared` so URLSession-based resolvers share the session.
+    public func syncWebsiteCookiesToSharedStorage() async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
+                let youtubeCookies = cookies.filter {
+                    let domain = $0.domain.lowercased()
+                    return domain.contains("youtube.com") || domain.contains("google.com") || domain.contains("youtu.be")
+                }
+                for cookie in youtubeCookies {
+                    HTTPCookieStorage.shared.setCookie(cookie)
+                }
+                print("[YT] Synced \(youtubeCookies.count) browser cookies to URLSession")
+                cont.resume()
+            }
+        }
+    }
 }
 
 public struct BrowserWebView: UIViewRepresentable {
@@ -265,12 +331,55 @@ public struct BrowserWebView: UIViewRepresentable {
                         }
                     }
                 },
+                // Catch SPA URL changes (YouTube watch / shorts) that skip full reloads.
+                webView.observe(\.url, options: [.new]) { [weak self] webView, _ in
+                    guard let self else { return }
+                    Task { @MainActor in
+                        let urlString = webView.url?.absoluteString ?? ""
+                        self.controller.updateTab(self.tabID) { tab in
+                            tab.urlString = urlString
+                            tab.canGoBack = webView.canGoBack
+                            tab.canGoForward = webView.canGoForward
+                        }
+                        if self.controller.selectedTabID == self.tabID, !urlString.isEmpty {
+                            self.controller.addressText = urlString
+                        }
+                    }
+                },
             ]
         }
 
         public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             Task { @MainActor in
                 controller.handleNavigationFinished(tabID: tabID, webView: webView)
+            }
+        }
+
+        public func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
+            guard isMainFrame,
+                  let url = navigationAction.request.url
+            else {
+                decisionHandler(.allow)
+                return
+            }
+
+            Task { @MainActor in
+                if let videoID = self.controller.youtubeVideoIDFromURL?(url) {
+                    if self.controller.consumeYouTubePassthrough(videoID: videoID) {
+                        decisionHandler(.allow)
+                        return
+                    }
+                    print("[YT] Intercept YouTube navigation id=\(videoID) — cancel page load")
+                    decisionHandler(.cancel)
+                    self.controller.pendingLocalYouTube = .init(videoID: videoID, url: url)
+                    return
+                }
+                decisionHandler(.allow)
             }
         }
 

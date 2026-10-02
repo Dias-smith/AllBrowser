@@ -74,7 +74,22 @@ public final class PlaybackController: ObservableObject {
 
     public func play(_ item: MediaItem) {
         currentItem = item
-        let playerItem = AVPlayerItem(url: item.sourceURL)
+        let url = item.sourceURL
+        let asset: AVURLAsset
+        if url.host?.contains("googlevideo.com") == true
+            || url.absoluteString.contains("manifest/hls")
+            || url.pathExtension.lowercased() == "m3u8" {
+            // Match YTLite / ExoPlayer headers so googlevideo accepts the request.
+            let headers: [String: String] = [
+                "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+                "Referer": "https://www.youtube.com/",
+                "Origin": "https://www.youtube.com",
+            ]
+            asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        } else {
+            asset = AVURLAsset(url: url)
+        }
+        let playerItem = AVPlayerItem(asset: asset)
         player.replaceCurrentItem(with: playerItem)
         applyRate()
         player.play()

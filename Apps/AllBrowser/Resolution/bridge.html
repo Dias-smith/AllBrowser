@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<script>
+(function() {
+    window.__nativeCallbacks = {};
+    window.__cbId = 0;
+    window.vsplayer = {
+        requestMethodHeadersBodyOptionsThen: function(url, method, headers, body, options, callback) {
+            var id = 'cb_' + (++window.__cbId);
+            window.__nativeCallbacks[id] = callback;
+            var bodyStr = '';
+            if (body != null) {
+                bodyStr = (typeof body === 'string') ? body : JSON.stringify(body);
+            }
+            AndroidBridge.requestWithCallback(
+                id,
+                url,
+                method,
+                JSON.stringify(headers || {}),
+                bodyStr,
+                JSON.stringify(options || {})
+            );
+        },
+        sendMessageToNative: function(message) {
+            var payload = (typeof message === 'string') ? message : JSON.stringify(message);
+            AndroidBridge.sendMessageToNative(payload);
+        },
+        queryUserInfo: function(callback) {
+            var id = 'cb_' + (++window.__cbId);
+            window.__nativeCallbacks[id] = function(success, result) {
+                callback(result || '{}');
+            };
+            AndroidBridge.queryUserInfo(id);
+        },
+        queryFIRRemoteConfigThen: function(key, callback) {
+            var id = 'cb_' + (++window.__cbId);
+            window.__nativeCallbacks[id] = function(success, result) {
+                callback(result || '');
+            };
+            AndroidBridge.queryFIRRemoteConfigThen(key, id);
+        }
+    };
+    window.AndroidBridge_invokeCallback = function(id, success, result, errCode, errMsg) {
+        var cb = window.__nativeCallbacks[id];
+        if (!cb) return;
+        delete window.__nativeCallbacks[id];
+        if ((result == null || result === 'null') && success) {
+            try {
+                result = AndroidBridge.getRequestResult(id);
+            } catch (e) {
+                result = '';
+            }
+        }
+        cb(success, result, errCode, errMsg);
+    };
+})();
+</script>
+<script src="resolution.js"></script>
+<script>
+(function waitForExtractor(attempts) {
+    if (window.extractor && typeof window.extractor.postMessageToJSBridge === 'function') {
+        AndroidBridge.onExtractorReady();
+        return;
+    }
+    if (attempts > 200) {
+        AndroidBridge.onExtractorError('resolution.js failed to load');
+        return;
+    }
+    setTimeout(function() { waitForExtractor(attempts + 1); }, 50);
+})(0);
+</script>
+</body>
+</html>

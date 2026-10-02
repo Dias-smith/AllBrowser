@@ -215,8 +215,7 @@ public protocol StreamResolving {
     func resolve(videoID: String) async throws -> YouTubeVideoInfo
 }
 
-/// Resolves metadata via oEmbed. Direct media streams are not always available
-/// without violating ToS; enhanced mode uses embed fallback when no stream URL.
+/// Resolves metadata via oEmbed. Used as fallback when JS stream extraction fails.
 public struct YouTubeOEmbedResolver: StreamResolving {
     public init() {}
 
@@ -255,7 +254,7 @@ public final class YouTubePlaybackService: ObservableObject {
 
     public init(
         cache: TemporaryCaching = TemporaryCacheStore(),
-        resolver: StreamResolving = YouTubeOEmbedResolver(),
+        resolver: StreamResolving = YouTubeChainedResolver(),
         settings: @escaping () -> AppSettings
     ) {
         self.cache = cache
@@ -268,6 +267,7 @@ public final class YouTubePlaybackService: ObservableObject {
     }
 
     public func prepare(videoID: String) async -> YouTubeVideoInfo? {
+        YouTubeLog.info("prepare start videoID=\(videoID) enhanced=\(isEnhancedEnabled)")
         isResolving = true
         errorMessage = nil
         defer { isResolving = false }
@@ -277,39 +277,42 @@ public final class YouTubePlaybackService: ObservableObject {
             cache.enforceCapacity(maxBytes: settings().youtubeCacheMaxBytes)
 
             if let cached = cache.cachedFileURL(videoID: videoID, quality: "auto") {
+                YouTubeLog.info("prepare using cache \(cached.lastPathComponent)")
                 info.streamURL = cached
                 info.usesEmbedFallback = false
             }
 
             // If a remote stream URL exists, warm temporary cache in background for seek resilience.
-            if let streamURL = info.streamURL, streamURL.isFileURL == false {
+            if let streamURL = info.streamURL, streamURL.isFileURL == false,
+               !(streamURL.absoluteString.contains(".m3u8")) {
                 Task {
                     await warmCache(videoID: videoID, url: streamURL)
                 }
             }
 
-            if !isEnhancedEnabled {
-                info.streamURL = nil
+            // Local-player path always keeps a resolved stream when present.
+            // Only force embed when enhanced playback is disabled AND no stream exists.
+            if !isEnhancedEnabled, info.streamURL == nil {
                 info.usesEmbedFallback = true
             }
 
+            YouTubeLog.info(
+                "prepare done title=\(info.title) stream=\(YouTubeLog.truncate(info.streamURL?.absoluteString)) embed=\(info.usesEmbedFallback)"
+            )
             lastInfo = info
             return info
         } catch {
+            YouTubeLog.error("prepare failed", error: error)
             errorMessage = error.localizedDescription
-            let fallback = YouTubeVideoInfo(
-                videoID: videoID,
-                title: "YouTube",
-                author: "",
-                usesEmbedFallback: true
-            )
-            lastInfo = fallback
-            return fallback
+            return nil
         }
     }
 
     public func play(info: YouTubeVideoInfo, using playback: PlaybackController) {
+        lastInfo = info
+        errorMessage = nil
         if let streamURL = info.streamURL {
+            YouTubeLog.info("play \(info.videoID) \(YouTubeLog.truncate(streamURL.absoluteString))")
             let item = MediaItem(
                 title: info.title,
                 artist: info.author,
@@ -317,6 +320,8 @@ public final class YouTubePlaybackService: ObservableObject {
                 sourceURL: streamURL
             )
             playback.play(item)
+        } else {
+            YouTubeLog.error("play skipped — no streamURL for \(info.videoID)")
         }
     }
 

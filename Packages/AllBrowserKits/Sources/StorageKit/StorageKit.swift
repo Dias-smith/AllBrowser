@@ -82,6 +82,8 @@ public struct AppSettings: Codable, Equatable {
     public var lockOnBackground: Bool
     public var lockGraceSeconds: Int
     public var youtubeEnhancedPlayback: Bool
+    /// When true, opening a YouTube watch/shorts URL launches the local player.
+    public var youtubeOpenInLocalPlayer: Bool
     public var youtubeCacheTTLHours: Int
     public var youtubeCacheMaxBytes: Int64
     public var searchEngineURLTemplate: String
@@ -93,6 +95,7 @@ public struct AppSettings: Codable, Equatable {
         lockOnBackground: true,
         lockGraceSeconds: 0,
         youtubeEnhancedPlayback: true,
+        youtubeOpenInLocalPlayer: false,
         youtubeCacheTTLHours: 48,
         youtubeCacheMaxBytes: 1_073_741_824,
         searchEngineURLTemplate: "https://duckduckgo.com/?q=%@",
@@ -105,6 +108,7 @@ public struct AppSettings: Codable, Equatable {
         lockOnBackground: Bool,
         lockGraceSeconds: Int,
         youtubeEnhancedPlayback: Bool,
+        youtubeOpenInLocalPlayer: Bool = false,
         youtubeCacheTTLHours: Int,
         youtubeCacheMaxBytes: Int64,
         searchEngineURLTemplate: String,
@@ -115,10 +119,26 @@ public struct AppSettings: Codable, Equatable {
         self.lockOnBackground = lockOnBackground
         self.lockGraceSeconds = lockGraceSeconds
         self.youtubeEnhancedPlayback = youtubeEnhancedPlayback
+        self.youtubeOpenInLocalPlayer = youtubeOpenInLocalPlayer
         self.youtubeCacheTTLHours = youtubeCacheTTLHours
         self.youtubeCacheMaxBytes = youtubeCacheMaxBytes
         self.searchEngineURLTemplate = searchEngineURLTemplate
         self.desktopModeDefault = desktopModeDefault
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = Self.default
+        adBlockEnabled = try c.decodeIfPresent(Bool.self, forKey: .adBlockEnabled) ?? d.adBlockEnabled
+        appLockEnabled = try c.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? d.appLockEnabled
+        lockOnBackground = try c.decodeIfPresent(Bool.self, forKey: .lockOnBackground) ?? d.lockOnBackground
+        lockGraceSeconds = try c.decodeIfPresent(Int.self, forKey: .lockGraceSeconds) ?? d.lockGraceSeconds
+        youtubeEnhancedPlayback = try c.decodeIfPresent(Bool.self, forKey: .youtubeEnhancedPlayback) ?? d.youtubeEnhancedPlayback
+        youtubeOpenInLocalPlayer = try c.decodeIfPresent(Bool.self, forKey: .youtubeOpenInLocalPlayer) ?? d.youtubeOpenInLocalPlayer
+        youtubeCacheTTLHours = try c.decodeIfPresent(Int.self, forKey: .youtubeCacheTTLHours) ?? d.youtubeCacheTTLHours
+        youtubeCacheMaxBytes = try c.decodeIfPresent(Int64.self, forKey: .youtubeCacheMaxBytes) ?? d.youtubeCacheMaxBytes
+        searchEngineURLTemplate = try c.decodeIfPresent(String.self, forKey: .searchEngineURLTemplate) ?? d.searchEngineURLTemplate
+        desktopModeDefault = try c.decodeIfPresent(Bool.self, forKey: .desktopModeDefault) ?? d.desktopModeDefault
     }
 }
 

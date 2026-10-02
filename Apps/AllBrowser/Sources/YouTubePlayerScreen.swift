@@ -7,38 +7,40 @@ import StorageKit
 
 struct YouTubePlayerScreen: View {
     let videoID: String
+    var preloaded: YouTubeVideoInfo? = nil
+    /// Called once when local resolve/play settles. `true` = playing locally.
+    var onSettled: ((Bool) -> Void)? = nil
+
     @EnvironmentObject private var youtube: YouTubePlaybackService
     @EnvironmentObject private var playback: PlaybackController
     @EnvironmentObject private var playlists: PlaylistStore
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @State private var info: YouTubeVideoInfo?
+    @State private var didReportSettled = false
+
+    private var hasLocalStream: Bool {
+        guard let info else { return false }
+        return info.streamURL != nil && !info.usesEmbedFallback
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
                 if youtube.isResolving {
-                    ProgressView("Resolving…")
+                    ProgressView("Resolving stream…")
                         .tint(ABColor.accent)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let info {
-                    Group {
-                        if info.usesEmbedFallback || info.streamURL == nil {
-                            YouTubeEmbedView(videoID: info.videoID)
-                                .frame(minHeight: 240)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        } else {
-                            PlayerLayerView(player: playback.player) { layer in
-                                playback.enablePictureInPicture(with: layer)
-                            }
-                            .frame(minHeight: 240)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .onAppear {
-                                youtube.play(info: info, using: playback)
-                            }
-                        }
+                } else if let info, hasLocalStream {
+                    PlayerLayerView(player: playback.player) { layer in
+                        playback.enablePictureInPicture(with: layer)
                     }
+                    .frame(minHeight: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .padding(.horizontal)
+                    .onAppear {
+                        youtube.play(info: info, using: playback)
+                    }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(info.title)
@@ -47,9 +49,7 @@ struct YouTubePlayerScreen: View {
                         Text(info.author)
                             .font(ABFont.body(14))
                             .foregroundStyle(ABColor.textSecondary)
-                        Text(info.usesEmbedFallback
-                             ? "Official embed playback (fallback when no direct stream)"
-                             : "Enhanced playback · Temporary cache available")
+                        Text("Local player · Direct stream · Background audio")
                             .font(ABFont.body(12))
                             .foregroundStyle(ABColor.accent)
                     }
@@ -74,10 +74,19 @@ struct YouTubePlayerScreen: View {
                     Spacer()
                 } else {
                     EmptyStateView(
-                        title: "Unable to open video",
-                        subtitle: youtube.errorMessage ?? "Please try again later",
+                        title: "Stream unavailable",
+                        subtitle: youtube.errorMessage
+                            ?? "Could not resolve a direct playable URL for this video.",
                         systemImage: "exclamationmark.triangle"
                     )
+                    Button("Retry") {
+                        Task {
+                            await resolveAndPlay(forceNetwork: true)
+                        }
+                    }
+                    .buttonStyle(ABPrimaryButtonStyle())
+                    .padding(.horizontal, 40)
+                    Spacer()
                 }
             }
             .background(ABColor.background)
@@ -89,8 +98,40 @@ struct YouTubePlayerScreen: View {
                 }
             }
             .task {
-                info = await youtube.prepare(videoID: videoID)
+                await resolveAndPlay(forceNetwork: false)
             }
         }
+    }
+
+    private func resolveAndPlay(forceNetwork: Bool) async {
+        YouTubeLog.info("PlayerScreen resolve forceNetwork=\(forceNetwork) videoID=\(videoID) preloaded=\(preloaded?.streamURL != nil)")
+        if !forceNetwork,
+           let preloaded,
+           preloaded.streamURL != nil,
+           !preloaded.usesEmbedFallback {
+            YouTubeLog.info("PlayerScreen using preloaded \(YouTubeLog.truncate(preloaded.streamURL?.absoluteString))")
+            info = preloaded
+            youtube.play(info: preloaded, using: playback)
+            reportSettled(true)
+            return
+        }
+
+        info = nil
+        let resolved = await youtube.prepare(videoID: videoID)
+        info = resolved
+        if let resolved, resolved.streamURL != nil, !resolved.usesEmbedFallback {
+            YouTubeLog.info("PlayerScreen network resolve OK")
+            youtube.play(info: resolved, using: playback)
+            reportSettled(true)
+        } else {
+            YouTubeLog.error("PlayerScreen unavailable err=\(youtube.errorMessage ?? "nil")")
+            reportSettled(false)
+        }
+    }
+
+    private func reportSettled(_ success: Bool) {
+        guard !didReportSettled else { return }
+        didReportSettled = true
+        onSettled?(success)
     }
 }

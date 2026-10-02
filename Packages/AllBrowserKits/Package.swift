@@ -30,7 +30,11 @@ let package = Package(
         .target(name: "CachePhotosKit", dependencies: ["StorageKit"]),
         .target(
             name: "YouTubeKit",
-            dependencies: ["MediaKit", "StorageKit"]
+            dependencies: ["MediaKit", "StorageKit"],
+            resources: [
+                .copy("Resources/resolution.js"),
+                .copy("Resources/bridge-ios.html"),
+            ]
         ),
     ]
 )
